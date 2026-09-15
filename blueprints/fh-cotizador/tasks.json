@@ -241,7 +241,7 @@
       "src/lib/pdf/documento.tsx",
       "tests/unit/pdf.test.tsx"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T2",
