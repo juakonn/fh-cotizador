@@ -120,7 +120,7 @@
       "src/lib/catalogo/shopify.ts",
       "tests/unit/catalogo.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T5",
