@@ -274,7 +274,7 @@
       "src/app/api/pdf/route.ts",
       "tests/unit/api-pdf.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T3",
