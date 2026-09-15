@@ -1,0 +1,13 @@
+{
+  "borrador": {
+    "version": 1,
+    "tipoDocumento": "cotizacion",
+    "cliente": null,
+    "items": [],
+    "descuentoGeneral": null,
+    "validezDias": 30,
+    "entrega": null,
+    "notas": []
+  },
+  "emisor": { "sucursal": "san-jacinto", "vendedorNombre": "", "vendedorCelular": "" }
+}

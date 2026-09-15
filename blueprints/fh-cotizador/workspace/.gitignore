@@ -1,0 +1,17 @@
+# dependencias y build
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# entorno: solo .env.example se commitea
+.env*
+!.env.example
+
+# resultados de tests
+playwright-report/
+test-results/
+
+# vercel
+.vercel/

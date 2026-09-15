@@ -1,0 +1,425 @@
+[
+  {
+    "id": "E1-T1",
+    "title": "Base del proyecto y endpoint de salud",
+    "epic": "01-motor",
+    "dependencies": [],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `npm run typecheck` y `npm run lint` corren sobre el proyecto recién copiado THE SYSTEM SHALL terminar con código 0.",
+      "WHEN el servidor armado recibe GET /api/salud THE SYSTEM SHALL responder 200 con el JSON `{\"ok\":true,\"app\":\"fh-cotizador\"}`.",
+      "WHEN el servidor armado responde cualquier ruta THE SYSTEM SHALL incluir el header `X-Frame-Options: DENY`.",
+      "WHEN corre `npx vitest run tests/unit/salud.test.ts` THE SYSTEM SHALL pasar con 0 fallas."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/salud.test.ts",
+      "npm run build",
+      "node scripts/probar-servidor.mjs \"GET /api/salud 200 contiene=fh-cotizador tipo=application/json\" \"GET /api/salud 200 encabezado='x-frame-options: DENY'\""
+    ],
+    "checkpoint": "step-01-base",
+    "files": [
+      "src/app/layout.tsx",
+      "src/app/globals.css",
+      "src/app/page.tsx",
+      "src/app/api/salud/route.ts",
+      "tests/unit/salud.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T2",
+    "title": "Acceso con link y cookie firmada",
+    "epic": "01-motor",
+    "dependencies": [
+      "E1-T1"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN una página se pide sin la cookie `fh_acceso` THE SYSTEM SHALL redirigir con 307 a /acceso.",
+      "WHEN una ruta /api/ que no es /api/salud ni /api/acceso se pide sin la cookie THE SYSTEM SHALL responder 401 con `{ error: { codigo: \"SIN_ACCESO\", mensaje: \"Abrí el link de acceso para usar la app\" } }`.",
+      "WHEN se abre /api/acceso?k=<ACCESS_KEY> THE SYSTEM SHALL guardar la cookie httpOnly `fh_acceso` por 400 días y redirigir con 303 a /.",
+      "WHEN la clave del link o del formulario es incorrecta THE SYSTEM SHALL redirigir con 303 a /acceso?error=1 sin guardar cookie.",
+      "WHEN corre `npx vitest run tests/unit/acceso.test.ts` THE SYSTEM SHALL pasar con 0 fallas."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/acceso.test.ts",
+      "npm run build",
+      "node scripts/probar-servidor.mjs \"GET / 307 destino=/acceso\" \"GET /acceso 200 contiene='Clave del equipo'\" \"GET /api/acceso?k=mala 303 destino=/acceso?error=1\" \"POST /api/pdf 401 contiene=SIN_ACCESO\" \"GET / 200 acceso\" \"GET /api/salud 200 contiene=fh-cotizador\""
+    ],
+    "checkpoint": "step-02-acceso",
+    "files": [
+      "src/lib/acceso.ts",
+      "src/proxy.ts",
+      "src/app/api/acceso/route.ts",
+      "src/app/acceso/page.tsx",
+      "tests/unit/acceso.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T3",
+    "title": "Montos, montos en letras, RUT y cédula",
+    "epic": "01-motor",
+    "dependencies": [
+      "E1-T1"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se formatean 1790000 centavos THE SYSTEM SHALL devolver `U$S 17.900`, y para 247050 centavos `U$S 2.470,50`.",
+      "WHEN se pasan a letras 2483500 centavos THE SYSTEM SHALL devolver `Dólares americanos veinticuatro mil ochocientos treinta y cinco`.",
+      "WHEN se pasa a letras el número 21000 THE SYSTEM SHALL devolver `veintiún mil`, y para 1000000 `un millón`.",
+      "WHEN se valida el RUT 212983680015 THE SYSTEM SHALL darlo por válido, y el 211234560018 por inválido con el motivo `El dígito verificador del RUT no coincide`.",
+      "WHEN se valida la cédula 1.234.567-2 THE SYSTEM SHALL darla por válida con normalizado `12345672`, y la 1.234.567-3 por inválida.",
+      "WHEN corre `npx vitest run tests/unit/dinero.test.ts` THE SYSTEM SHALL pasar con 0 fallas."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/dinero.test.ts"
+    ],
+    "checkpoint": "step-03-dinero",
+    "files": [
+      "src/lib/config/negocio.ts",
+      "src/lib/dinero/formato.ts",
+      "src/lib/dinero/letras.ts",
+      "src/lib/documentos/identificacion.ts",
+      "tests/unit/dinero.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T4",
+    "title": "Lectura y limpieza del catálogo de Shopify",
+    "epic": "01-motor",
+    "dependencies": [
+      "E1-T3"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se normaliza `tests/fixtures/productos-shopify.json` THE SYSTEM SHALL excluir los productos con precio 0 y usar el id de variante con el precio en centavos (Farmtrac FT 6050 → id 50605744423200 y 1790000).",
+      "WHEN un producto tiene la etiqueta `iva-incluido` THE SYSTEM SHALL marcarlo con `ivaIncluido: true` y `sospechaIva: false`, y WHEN una pala frontal, pala cajón, retroexcavadora o chipeadora no la tiene THE SYSTEM SHALL marcarla con `sospechaIva: true`.",
+      "WHEN se limpia una descripción THE SYSTEM SHALL devolver líneas con ids L1…Ln, solo caracteres WinAnsi y sin menciones a WhatsApp, financiación, Santander, cuotas, precalificación ni precios escritos a mano («CONTADO U$S 2610»).",
+      "WHEN una descripción tiene las secciones «Ideal para», «Ficha técnica» y «El respaldo Florencio Hernández» THE SYSTEM SHALL marcar con `importante: false` los títulos y líneas de «Ideal para» y «El respaldo Florencio Hernández», y con `importante: true` los de «Ficha técnica».",
+      "WHEN la primera página de Shopify trae 250 productos THE SYSTEM SHALL pedir la página 2 y juntar las dos.",
+      "WHEN Shopify responde un estado de error THE SYSTEM SHALL fallar con `ErrorCatalogo` de código `SHOPIFY_NO_DISPONIBLE`."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/catalogo.test.ts"
+    ],
+    "checkpoint": "step-04-catalogo",
+    "files": [
+      "src/lib/catalogo/winansi.ts",
+      "src/lib/catalogo/descripcion.ts",
+      "src/lib/catalogo/normalizar.ts",
+      "src/lib/catalogo/shopify.ts",
+      "tests/unit/catalogo.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T5",
+    "title": "Motor de cálculo, validación y esquema",
+    "epic": "01-motor",
+    "dependencies": [
+      "E1-T4"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN la cotización tiene el Farmtrac FT 6050 (U$S 17.900) y las Palas frontales para DF 554 (U$S 7.300) THE SYSTEM SHALL calcular subtotal y total de 2520000 centavos con IVA `mixto`.",
+      "WHEN la pala tiene 5% de descuento y hay un descuento general de U$S 500 THE SYSTEM SHALL calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos.",
+      "WHEN un producto de la cotización ya no está en el catálogo THE SYSTEM SHALL devolver `PRODUCTO_NO_DISPONIBLE` con su id.",
+      "WHEN el borrador está vacío THE SYSTEM SHALL pedir productos y plazo de entrega, y WHEN es factura proforma sin cliente THE SYSTEM SHALL pedir los datos del cliente.",
+      "WHEN el RUT del cliente es inválido o un producto tiene `sospechaIva` THE SYSTEM SHALL devolver una advertencia sin sumar problemas que bloqueen el PDF.",
+      "WHEN la solicitud trae cantidad 0 o un porcentaje de descuento mayor a 100 THE SYSTEM SHALL rechazarla con `esquemaSolicitudPdf`."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/cotizacion.test.ts"
+    ],
+    "checkpoint": "step-05-calculo",
+    "files": [
+      "src/lib/cotizacion/tipos.ts",
+      "src/lib/cotizacion/calculo.ts",
+      "src/lib/cotizacion/validacion.ts",
+      "src/lib/cotizacion/esquema.ts",
+      "tests/unit/cotizacion.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T6",
+    "title": "Historial con Deshacer y borrador guardado",
+    "epic": "01-motor",
+    "dependencies": [
+      "E1-T5"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se agrega dos veces el mismo producto THE SYSTEM SHALL dejar un solo ítem con cantidad 2 y el precio visto de la web.",
+      "WHEN se pide cantidad 500 o validez 0 THE SYSTEM SHALL acotarlas a 99 y a 1.",
+      "WHEN se aplican varias acciones juntas y después Deshacer THE SYSTEM SHALL volver al estado anterior a todas ellas en un solo paso.",
+      "WHEN se hicieron 40 cambios THE SYSTEM SHALL guardar como máximo 30 pasos de Deshacer.",
+      "WHEN el borrador guardado en el navegador está corrupto o es de otra versión THE SYSTEM SHALL ignorarlo y devolver `null`.",
+      "WHEN se agrega el Farmtrac FT 6050 THE SYSTEM SHALL dejar ocultas de entrada las líneas de sus secciones de venta (L2 a L10, L26 y L27) y visible su ficha técnica."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/reducer.test.ts"
+    ],
+    "checkpoint": "step-06-historial",
+    "files": [
+      "src/lib/cotizacion/reducer.ts",
+      "src/lib/cotizacion/persistencia.ts",
+      "tests/unit/reducer.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T7",
+    "title": "Intérprete de frases en lenguaje simple",
+    "epic": "01-motor",
+    "dependencies": [
+      "E1-T6"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se escribe «agregale la pala» con un Dong Feng DF 554 G3 en la cotización THE SYSTEM SHALL agregar las Palas frontales para DF 554 y resumir «Agregué Palas frontales para DF 554 (U$S 7.300)».",
+      "WHEN se escribe «agregá la pala» sin tractor en la cotización THE SYSTEM SHALL preguntar «¿Cuál querés agregar?» con las 6 palas del catálogo de prueba como opciones.",
+      "WHEN se escribe «dejalo en 23.000» con un subtotal de U$S 24.600 THE SYSTEM SHALL poner un descuento general de 160000 centavos.",
+      "WHEN se escribe «cliente Agro Ejemplo S.A. rut 211234560019» THE SYSTEM SHALL cargar un cliente empresa con esa razón social y ese RUT.",
+      "WHEN una parte de la frase no se entiende THE SYSTEM SHALL devolver `no-entendi` sin aplicar ninguna acción.",
+      "WHEN corre `npx vitest run tests/unit/interprete.test.ts` THE SYSTEM SHALL pasar con 0 fallas."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/interprete.test.ts"
+    ],
+    "checkpoint": "step-07-interprete",
+    "files": [
+      "src/lib/interprete/texto.ts",
+      "src/lib/interprete/buscar.ts",
+      "src/lib/interprete/interpretar.ts",
+      "tests/unit/interprete.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T1",
+    "title": "Documento PDF con membrete de fondo",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E1-T5"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se genera la proforma de prueba (Farmtrac FT 6050 más Palas frontales para DF 554 con 5%) THE SYSTEM SHALL producir un PDF de menos de 2,5 MB cuyo texto contiene «FACTURA PROFORMA», «TOTAL: U$S 24.835» y «(Dólares americanos veinticuatro mil ochocientos treinta y cinco)».",
+      "WHEN la proforma de prueba tiene 2 productos THE SYSTEM SHALL producir 2 hojas: la primera con el Farmtrac FT 6050, su precio y su ficha técnica hasta «Barra antivuelco plegable», sin las Palas frontales para DF 554 ni «TOTAL:»; la segunda con las Palas frontales para DF 554, «TOTAL: U$S 24.835» y la forma de pago.",
+      "WHEN un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) THE SYSTEM SHALL dejar ese texto fuera del PDF («Por qué elegirlo» no aparece) y mostrar la ficha técnica («Tanque de combustible 60 litros»).",
+      "WHEN el documento es una cotización sin cliente THE SYSTEM SHALL titularlo «COTIZACIÓN» y no escribir «Cliente:», y WHEN el vendedor es Joaquín con otro celular guardado THE SYSTEM SHALL escribir «Atendido por: Joaquín · Cel. 092 469 449».",
+      "WHEN la fecha es 2026-09-11T02:30:00Z THE SYSTEM SHALL escribir «10 de setiembre de 2026» (hora de Montevideo), y WHEN se arma el nombre del archivo de la proforma de prueba THE SYSTEM SHALL devolver «Proforma - Agro Ejemplo S.A. - Farmtrac FT 6050 - 50HP - 4x4 - 2026-09-11.pdf».",
+      "WHEN una foto llega como PNG pesado con transparencia THE SYSTEM SHALL convertirla en un JPG de menos de 400 KB, y un PDF con 3 fotos así THE SYSTEM SHALL dejarlo por debajo de 4 MB (Vercel corta respuestas de más de 4,5 MB)."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/pdf.test.tsx"
+    ],
+    "checkpoint": "step-08-pdf",
+    "files": [
+      "src/lib/pdf/fecha.ts",
+      "src/lib/pdf/archivo.ts",
+      "src/lib/pdf/imagenes.ts",
+      "src/lib/pdf/documento.tsx",
+      "tests/unit/pdf.test.tsx"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T2",
+    "title": "Ruta POST /api/pdf",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E2-T1",
+      "E1-T2"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `generarPdf` recibe una solicitud válida THE SYSTEM SHALL devolver el PDF y el nombre «Cotización - Sin cliente - Farmtrac FT 6050 - 50HP - 4x4 - 2026-09-11.pdf».",
+      "WHEN el cuerpo no es JSON o no cumple el esquema THE SYSTEM SHALL responder 400 con `{ error: { codigo: \"SOLICITUD_INVALIDA\" } }`.",
+      "WHEN falta el plazo de entrega THE SYSTEM SHALL responder 422 `BORRADOR_INCOMPLETO` sin leer el catálogo.",
+      "WHEN el precio de la web cambió desde que se armó la cotización THE SYSTEM SHALL responder 409 `PRECIO_CAMBIO` con el precio anterior y el nuevo en centavos.",
+      "WHEN Shopify no responde THE SYSTEM SHALL responder 502 `SHOPIFY_NO_DISPONIBLE`.",
+      "WHEN corre `npm run build` THE SYSTEM SHALL incluir `membrete-fh-a4.jpg` en el trazado de archivos de la función /api/pdf."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npx vitest run tests/unit/api-pdf.test.ts",
+      "npm run build",
+      "grep -q membrete-fh-a4.jpg .next/server/app/api/pdf/route.js.nft.json",
+      "node scripts/probar-servidor.mjs \"POST /api/pdf 401 contiene=SIN_ACCESO\" \"POST /api/pdf 400 acceso cuerpo=tests/fixtures/solicitud-invalida.txt contiene=SOLICITUD_INVALIDA\" \"POST /api/pdf 422 acceso cuerpo=tests/fixtures/solicitud-incompleta.json contiene=BORRADOR_INCOMPLETO\""
+    ],
+    "checkpoint": "step-09-api-pdf",
+    "files": [
+      "src/lib/pdf/generar.ts",
+      "src/app/api/pdf/route.ts",
+      "tests/unit/api-pdf.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T3",
+    "title": "Pantalla de armado: cliente, buscador e ítems",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E1-T2",
+      "E1-T6"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el servidor armado recibe GET / con la cookie de acceso THE SYSTEM SHALL responder 200 con el campo «Buscar producto» y títulos del catálogo de la web en el HTML (por ejemplo «Farmtrac»).",
+      "WHEN corren `npm run typecheck` y `npm run lint` con los componentes nuevos THE SYSTEM SHALL terminar con código 0.",
+      "WHEN corre `npm test` THE SYSTEM SHALL pasar todos los tests unitarios con 0 fallas."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npm test",
+      "npm run build",
+      "node scripts/probar-servidor.mjs \"GET / 200 acceso contiene='Buscar producto'\" \"GET / 200 acceso contiene=Farmtrac\""
+    ],
+    "checkpoint": "step-10-armado",
+    "files": [
+      "src/app/page.tsx",
+      "src/components/cotizador/Cotizador.tsx",
+      "src/components/cotizador/DatosCliente.tsx",
+      "src/components/cotizador/BuscadorProductos.tsx",
+      "src/components/cotizador/ItemCotizacion.tsx"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T4",
+    "title": "Condiciones, intérprete y ajustes del dispositivo",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E2-T3",
+      "E1-T7"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el servidor armado recibe GET / con la cookie de acceso THE SYSTEM SHALL incluir en el HTML el cuadro «Pedile algo», la opción «Entrega inmediata» y el botón «Ajustes del dispositivo».",
+      "WHEN corren `npm run typecheck`, `npm run lint` y `npm test` THE SYSTEM SHALL terminar con código 0."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npm test",
+      "npm run build",
+      "node scripts/probar-servidor.mjs \"GET / 200 acceso contiene='Pedile algo'\" \"GET / 200 acceso contiene='Entrega inmediata'\" \"GET / 200 acceso contiene='Ajustes del dispositivo'\""
+    ],
+    "checkpoint": "step-11-condiciones",
+    "files": [
+      "src/components/cotizador/Condiciones.tsx",
+      "src/components/cotizador/Interprete.tsx",
+      "src/components/cotizador/AjustesDispositivo.tsx",
+      "src/components/cotizador/Cotizador.tsx"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T5",
+    "title": "Generar, compartir y descargar el PDF, con e2e",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E2-T4",
+      "E2-T2"
+    ],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se busca «farmtrac 6050», se agrega, se elige «Entrega inmediata», se escribe «5% de descuento» en «Pedile algo» y se toca «Aplicar» THE SYSTEM SHALL mostrar «Descuento general 5%» en la zona de estado.",
+      "WHEN después se toca «Generar PDF» THE SYSTEM SHALL recibir de /api/pdf un 200 `application/pdf` y mostrar el botón «Descargar».",
+      "WHEN es factura proforma sin cliente THE SYSTEM SHALL mostrar «La factura proforma necesita los datos del cliente» y dejar deshabilitado «Generar PDF».",
+      "WHEN se escribe «validez 15 días», se aplica y después se toca «Deshacer» THE SYSTEM SHALL volver a mostrar 30 en «Validez (días)»."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npm run test:e2e"
+    ],
+    "checkpoint": "step-12-generar",
+    "files": [
+      "src/components/cotizador/BarraTotal.tsx",
+      "src/components/cotizador/Cotizador.tsx",
+      "tests/e2e/cotizacion.spec.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T6",
+    "title": "Ícono en el celular y revisión de etiquetas de IVA",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E1-T2",
+      "E1-T4"
+    ],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN se pide /manifest.webmanifest sin cookie THE SYSTEM SHALL responder 200 con el nombre «FH Cotizador», `display: standalone` e íconos de 192 y 512 px.",
+      "WHEN se piden /icons/icon-192.png y /icon.png sin cookie THE SYSTEM SHALL responder 200 con `image/png`.",
+      "WHEN corre `npm run iva:revisar -- --fixture tests/fixtures/productos-shopify.json` THE SYSTEM SHALL listar «Retroexcavadora LW-6» entre los productos que parecen llevar IVA sin la etiqueta."
+    ],
+    "verify": [
+      "npm run typecheck",
+      "npm run lint",
+      "npm run build",
+      "node scripts/probar-servidor.mjs \"GET /manifest.webmanifest 200 contiene='FH Cotizador'\" \"GET /manifest.webmanifest 200 contiene=standalone\" \"GET /icons/icon-192.png 200 tipo=image/png\" \"GET /icon.png 200 tipo=image/png\"",
+      "npm run iva:revisar -- --fixture tests/fixtures/productos-shopify.json | grep -q \"Retroexcavadora LW-6\""
+    ],
+    "checkpoint": "step-13-app-celular",
+    "files": [
+      "src/app/manifest.ts",
+      "src/app/layout.tsx",
+      "scripts/revisar-iva.mts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T7",
+    "title": "README de uso y deploy, y gate final",
+    "epic": "02-pdf-e-interfaz",
+    "dependencies": [
+      "E2-T5",
+      "E2-T6"
+    ],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN corre `npm run verificar` THE SYSTEM SHALL terminar con código 0 (tipos, lint, tests unitarios y build).",
+      "WHEN corre `npm run test:e2e` THE SYSTEM SHALL pasar todos los recorridos con 0 fallas.",
+      "WHEN se lee README.md THE SYSTEM SHALL encontrar las secciones de deploy en Vercel, la variable `ACCESS_KEY`, el link de acceso y la etiqueta `iva-incluido`."
+    ],
+    "verify": [
+      "npm run verificar",
+      "npm run test:e2e",
+      "grep -q \"ACCESS_KEY\" README.md",
+      "grep -q \"iva-incluido\" README.md",
+      "grep -q \"/api/acceso?k=\" README.md",
+      "grep -q \"Vercel\" README.md",
+      "node scripts/probar-servidor.mjs \"GET /api/salud 200 contiene=fh-cotizador\" \"GET / 307 destino=/acceso\" \"GET / 200 acceso contiene='Buscar producto'\" \"POST /api/pdf 422 acceso cuerpo=tests/fixtures/solicitud-incompleta.json contiene=BORRADOR_INCOMPLETO\" \"GET /manifest.webmanifest 200 contiene='FH Cotizador'\""
+    ],
+    "checkpoint": "step-14-entrega",
+    "files": [
+      "README.md"
+    ],
+    "status": "pending"
+  }
+]
