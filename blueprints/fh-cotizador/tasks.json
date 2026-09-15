@@ -89,7 +89,7 @@
       "src/lib/documentos/identificacion.ts",
       "tests/unit/dinero.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T4",
