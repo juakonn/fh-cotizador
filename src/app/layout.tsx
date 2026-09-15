@@ -5,6 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "FH Cotizador",
   description: "Cotizaciones y facturas proforma de Florencio Hernández",
+  appleWebApp: { capable: true, title: "FH Cotizador", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
