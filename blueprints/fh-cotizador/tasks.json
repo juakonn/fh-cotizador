@@ -151,7 +151,7 @@
       "src/lib/cotizacion/esquema.ts",
       "tests/unit/cotizacion.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T6",
