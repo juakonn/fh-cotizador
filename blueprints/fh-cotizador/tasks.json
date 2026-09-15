@@ -362,7 +362,7 @@
       "src/components/cotizador/Cotizador.tsx",
       "tests/e2e/cotizacion.spec.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T6",

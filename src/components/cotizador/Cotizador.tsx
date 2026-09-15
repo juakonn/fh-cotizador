@@ -13,6 +13,7 @@ import {
 import { crearEmisorPorDefecto, type Emisor, type TipoDocumento } from "@/lib/cotizacion/tipos";
 import { advertencias } from "@/lib/cotizacion/validacion";
 import { AjustesDispositivo } from "./AjustesDispositivo";
+import { BarraTotal } from "./BarraTotal";
 import { BuscadorProductos } from "./BuscadorProductos";
 import { BOTON, TARJETA } from "./campos";
 import { Condiciones } from "./Condiciones";
@@ -127,6 +128,8 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
       <Interprete borrador={borrador} catalogo={catalogo} despachar={despachar} />
 
       <Condiciones borrador={borrador} despachar={despachar} />
+
+      <BarraTotal borrador={borrador} emisor={emisor} catalogo={catalogo} despachar={despachar} />
     </main>
   );
 }
