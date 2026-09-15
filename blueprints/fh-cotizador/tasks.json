@@ -180,7 +180,7 @@
       "src/lib/cotizacion/persistencia.ts",
       "tests/unit/reducer.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T7",
