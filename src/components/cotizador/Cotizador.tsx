@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Producto } from "@/lib/catalogo/normalizar";
-import { leerBorrador, guardarBorrador } from "@/lib/cotizacion/persistencia";
+import { guardarBorrador, leerBorrador, leerEmisor } from "@/lib/cotizacion/persistencia";
 import {
   type Accion,
   conHistorial,
@@ -10,11 +10,14 @@ import {
   deshacer,
   type Historial,
 } from "@/lib/cotizacion/reducer";
-import type { TipoDocumento } from "@/lib/cotizacion/tipos";
+import { crearEmisorPorDefecto, type Emisor, type TipoDocumento } from "@/lib/cotizacion/tipos";
 import { advertencias } from "@/lib/cotizacion/validacion";
+import { AjustesDispositivo } from "./AjustesDispositivo";
 import { BuscadorProductos } from "./BuscadorProductos";
 import { BOTON, TARJETA } from "./campos";
+import { Condiciones } from "./Condiciones";
 import { DatosCliente } from "./DatosCliente";
+import { Interprete } from "./Interprete";
 import { ItemCotizacion } from "./ItemCotizacion";
 
 const TIPOS: { valor: TipoDocumento; etiqueta: string }[] = [
@@ -24,12 +27,14 @@ const TIPOS: { valor: TipoDocumento; etiqueta: string }[] = [
 
 export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
   const [historial, setHistorial] = useState<Historial>(() => crearHistorial());
+  const [emisor, setEmisor] = useState<Emisor>(() => crearEmisorPorDefecto());
   const [cargado, setCargado] = useState(false);
   const borrador = historial.actual;
 
   useEffect(() => {
     const guardado = leerBorrador(window.localStorage);
     if (guardado) setHistorial(crearHistorial(guardado));
+    setEmisor(leerEmisor(window.localStorage));
     setCargado(true);
   }, []);
 
@@ -50,9 +55,9 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pb-40">
-      <header className="-mx-4 -mt-4 flex items-center justify-between gap-2 bg-marino px-4 py-3 text-white">
+      <header className="-mx-4 -mt-4 flex flex-wrap items-center justify-between gap-2 bg-marino px-4 py-3 text-white">
         <h1 className="text-xl font-semibold">FH Cotizador</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className={`${BOTON} border-white/40 bg-transparent text-white hover:bg-marino-claro`}
@@ -72,6 +77,7 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
           >
             Nueva cotización
           </button>
+          <AjustesDispositivo emisor={emisor} alGuardar={setEmisor} />
         </div>
       </header>
 
@@ -117,6 +123,10 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
           />
         ))
       )}
+
+      <Interprete borrador={borrador} catalogo={catalogo} despachar={despachar} />
+
+      <Condiciones borrador={borrador} despachar={despachar} />
     </main>
   );
 }
