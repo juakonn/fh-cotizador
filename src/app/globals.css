@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@source not "../../blueprints";
+
+@theme {
+  --color-marino: #0c2641;
+  --color-marino-claro: #163a5f;
+  --color-dorado: #c9a34b;
+  --color-fondo: #f5f6f8;
+  --color-superficie: #ffffff;
+  --color-borde: #d9dee7;
+  --color-texto: #14202e;
+  --color-texto-suave: #5b6878;
+  --color-error: #b42318;
+  --color-ok: #1f7a4d;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  font-family: var(--font-sans);
+}
