@@ -186,6 +186,31 @@ describe("PDF de la factura proforma", () => {
     expect(texto).toContain("Atendido por: Joaquín · Cel. 092 469 449");
     expect(texto).not.toContain("099 000 000");
   });
+  it("un solo producto con toda su ficha técnica entra en una sola hoja", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      tipoDocumento: "cotizacion",
+      cliente: null,
+      notas: [],
+      items: [
+        {
+          productoId: FARMTRAC,
+          cantidad: 1,
+          descuento: null,
+          lineasOcultas: deVenta(FARMTRAC),
+          mostrarFoto: true,
+          precioVistoCentavos: 1790000,
+        },
+      ],
+    };
+    const doc = await getDocumentProxy(new Uint8Array(await renderizarPdf(datos(borrador))));
+    const { text } = await extractText(doc, { mergePages: false });
+    expect(text.length).toBe(1);
+    const hoja = text[0].replace(/s+/g, " ");
+    expect(hoja).toContain("Barra antivuelco plegable");
+    expect(hoja).toContain("TOTAL: U$S 17.900");
+    expect(hoja).toContain("Forma de pago: contado o financiado con Mi Maquinaria by Santander.");
+  });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
     const texto = await textoPlano(await renderizarPdf(datos(borrador)));

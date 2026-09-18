@@ -53,6 +53,11 @@ const s = StyleSheet.create({
   producto: { marginTop: "6mm" },
   vista: { flexDirection: "row", alignItems: "flex-end", marginBottom: "3mm" },
   foto: { flex: 1, height: "58mm", objectFit: "contain", marginRight: "5mm" },
+  // Ficha larga: foto y precio en una columna a la izquierda, ficha técnica al lado.
+  columnas: { flexDirection: "row", gap: "5mm" },
+  columnaIzquierda: { width: "66mm" },
+  columnaDerecha: { flex: 1 },
+  fotoColumna: { width: "100%", height: "48mm", objectFit: "contain", marginBottom: "3mm" },
   productoTitulo: { fontFamily: "Helvetica-Bold", fontSize: 15, color: MARINO },
   barraChica: {
     width: "16mm",
@@ -77,6 +82,10 @@ const s = StyleSheet.create({
   filaEtiqueta: { width: "42%", fontFamily: "Helvetica-Bold", fontSize: 9, paddingRight: "3mm" },
   filaValor: { flex: 1, fontSize: 9 },
   parrafo: { fontSize: 9, marginBottom: "1.5mm" },
+  filaApretada: { paddingVertical: "0.3mm" },
+  textoApretado: { fontSize: 8.5 },
+  parrafoApretado: { fontSize: 8.5, marginBottom: "1mm" },
+  seccionApretada: { marginTop: "2mm", marginBottom: "0.5mm" },
   precios: {
     width: "62mm",
     marginLeft: "auto",
@@ -125,25 +134,40 @@ function porcentaje(valor: number): string {
   return String(valor).replace(".", ",");
 }
 
-function LineaDescripcion({ linea }: { linea: Linea }) {
-  if (linea.tipo === "titulo") return <Text style={s.seccion}>{linea.texto}</Text>;
+function LineaDescripcion({ linea, apretado }: { linea: Linea; apretado: boolean }) {
+  const fila = apretado ? [s.fila, s.filaApretada] : [s.fila];
+  const etiqueta = apretado ? [s.filaEtiqueta, s.textoApretado] : [s.filaEtiqueta];
+  const valor = apretado ? [s.filaValor, s.textoApretado] : [s.filaValor];
+  if (linea.tipo === "titulo") {
+    return (
+      <Text style={apretado ? [s.seccion, s.seccionApretada] : [s.seccion]}>{linea.texto}</Text>
+    );
+  }
   const par = linea.texto.match(ETIQUETA_VALOR);
   if (par) {
     return (
-      <View style={s.fila} wrap={false}>
-        <Text style={s.filaEtiqueta}>{par[1]}</Text>
-        <Text style={s.filaValor}>{par[2]}</Text>
+      <View style={fila} wrap={false}>
+        <Text style={etiqueta}>{par[1]}</Text>
+        <Text style={valor}>{par[2]}</Text>
       </View>
     );
   }
   if (linea.tipo === "item") {
     return (
-      <View style={s.fila} wrap={false}>
-        <Text style={s.filaValor}>{linea.texto}</Text>
+      <View style={fila} wrap={false}>
+        <Text style={valor}>{linea.texto}</Text>
       </View>
     );
   }
-  return <Text style={s.parrafo}>{linea.texto}</Text>;
+  return <Text style={apretado ? [s.parrafo, s.parrafoApretado] : [s.parrafo]}>{linea.texto}</Text>;
+}
+
+// Con muchas líneas de ficha, el producto se arma en dos columnas para que el cierre (total y
+// condiciones) entre en la misma hoja.
+const LINEAS_PARA_DOS_COLUMNAS = 10;
+
+function altoFoto(filas: number): string {
+  return filas <= 8 ? "58mm" : "46mm";
 }
 
 function HojaProducto({
@@ -160,27 +184,46 @@ function HojaProducto({
   const foto = item?.mostrarFoto ? (datos.fotos[linea.productoId] ?? null) : null;
   const visibles = (producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id));
   const d = item?.descuento ?? null;
+  const dosColumnas = visibles.length > LINEAS_PARA_DOS_COLUMNAS;
+  const precios = (
+    <View style={s.precios} wrap={false}>
+      <Text>{`Precio unitario: ${formatearUSD(linea.precioUnitarioCentavos)}`}</Text>
+      {linea.cantidad > 1 ? <Text>{`Cantidad: ${linea.cantidad}`}</Text> : null}
+      {linea.descuentoCentavos > 0 ? (
+        <Text>
+          {`Descuento${d?.tipo === "porcentaje" ? ` (${porcentaje(d.valor)}%)` : ""}: - ${formatearUSD(linea.descuentoCentavos)}`}
+        </Text>
+      ) : null}
+      <Text style={s.importe}>{`Importe: ${formatearUSD(linea.netoCentavos)}`}</Text>
+      <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+    </View>
+  );
+  const descripcion = visibles.map((l) => (
+    <LineaDescripcion key={l.id} linea={l} apretado={dosColumnas} />
+  ));
   return (
     <View style={s.producto} break={!primera}>
       <Text style={s.productoTitulo}>{linea.titulo}</Text>
       <View style={s.barraChica} />
-      <View style={s.vista} wrap={false}>
-        {foto ? <Image src={foto} style={s.foto} /> : null}
-        <View style={s.precios} wrap={false}>
-          <Text>{`Precio unitario: ${formatearUSD(linea.precioUnitarioCentavos)}`}</Text>
-          {linea.cantidad > 1 ? <Text>{`Cantidad: ${linea.cantidad}`}</Text> : null}
-          {linea.descuentoCentavos > 0 ? (
-            <Text>
-              {`Descuento${d?.tipo === "porcentaje" ? ` (${porcentaje(d.valor)}%)` : ""}: - ${formatearUSD(linea.descuentoCentavos)}`}
-            </Text>
-          ) : null}
-          <Text style={s.importe}>{`Importe: ${formatearUSD(linea.netoCentavos)}`}</Text>
-          <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      {dosColumnas ? (
+        <View style={s.columnas}>
+          <View style={s.columnaIzquierda} wrap={false}>
+            {foto ? <Image src={foto} style={s.fotoColumna} /> : null}
+            {precios}
+          </View>
+          <View style={s.columnaDerecha}>{descripcion}</View>
         </View>
-      </View>
-      {visibles.map((l) => (
-        <LineaDescripcion key={l.id} linea={l} />
-      ))}
+      ) : (
+        <>
+          <View style={s.vista} wrap={false}>
+            {foto ? (
+              <Image src={foto} style={[s.foto, { height: altoFoto(visibles.length) }]} />
+            ) : null}
+            {precios}
+          </View>
+          {descripcion}
+        </>
+      )}
     </View>
   );
 }

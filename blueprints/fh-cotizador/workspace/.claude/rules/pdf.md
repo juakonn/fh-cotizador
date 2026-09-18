@@ -12,7 +12,8 @@ paths:
   El membrete ocupa arriba hasta 46 mm y abajo desde 270,6 mm: no escribir fuera de la zona.
 - **Una hoja por producto**: cada producto después del primero empieza con `break`. Arriba el título,
   la foto y el recuadro de precio lado a lado; abajo la descripción visible, con las líneas
-  «Etiqueta: valor» como filas de tabla. El cierre (resumen si hay 2 o más productos, total, condiciones,
+  «Etiqueta: valor» como filas de tabla. Con más de 10 líneas visibles el producto pasa a dos columnas
+  (foto y precio a la izquierda, ficha al lado) para que el cierre entre en la misma hoja. El cierre (resumen si hay 2 o más productos, total, condiciones,
   notas y «Atendido por») va en un único bloque `wrap={false}` después del último producto.
 - Medidas, peso y equipamiento salen solo de la descripción de Shopify: si faltan, se cargan en la web.
 - Fuentes estándar (`Helvetica`, `Helvetica-Bold`, `Helvetica-Oblique`). No se registran fuentes.
