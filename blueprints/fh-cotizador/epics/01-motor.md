@@ -854,7 +854,9 @@ inyectable.
   };
   ```
 - `sinAcentos(texto)`: NFD, sin marcas diacríticas, minúsculas. La sospecha de IVA usa
-  `/\b(palas?\s+frontal(es)?|pala\s+cajon|retroexcavadora|chipeadora)/` sobre `sinAcentos(titulo)`.
+  `/\b(palas?\s+frontal(es)?|pala\s+cajon|pala\s+niveladora|retroexcavadora|chipeadora)/` sobre
+  `sinAcentos(titulo)`, salvo que el título también coincida con
+  `/(dong feng|iseki|farmtrac|landtrac).*con .*pala/` (el tractor con la pala incluida queda exento).
 - `urlImagenPdf(src)` agrega `width=1000&format=pjpg` con `?` o `&` según corresponda: Shopify
   achica y pasa a JPG las fotos WebP y las PNG sin transparencia, pero las PNG con transparencia
   siguen llegando como PNG pesado; por eso el PDF recomprime cada foto (epic 02, `prepararImagen`).
@@ -962,7 +964,8 @@ describe("normalizarCatalogo", () => {
   it("marca como sospechosos de IVA a palas frontales, palas cajón y retros sin etiqueta", () => {
     expect(porId(49362879217952)).toMatchObject({ ivaIncluido: false, sospechaIva: true });
     expect(porId(48058042155296)).toMatchObject({ ivaIncluido: false, sospechaIva: true });
-    expect(porId(47450481099040)).toMatchObject({ sospechaIva: false });
+    expect(porId(47450481099040)).toMatchObject({ sospechaIva: true }); // pala niveladora
+    expect(porId(50892293308704)).toMatchObject({ sospechaIva: false }); // tractor con pala: exento
   });
   it("marca los repuestos", () => {
     expect(catalogo.filter((p) => p.esRepuesto).length).toBeGreaterThan(0);
@@ -1019,12 +1022,44 @@ describe("obtenerCatalogo", () => {
     await expect(obtenerCatalogo({ fetchImpl })).rejects.toBeInstanceOf(ErrorCatalogo);
   });
 });
+
+describe("sospecha de IVA", () => {
+  const productos = (titulos: string[]) =>
+    normalizarCatalogo({
+      products: titulos.map((title, i) => ({
+        id: i + 1,
+        title,
+        handle: `p${i}`,
+        variants: [{ id: 100 + i, title: "Default Title", price: "1000.00" }],
+      })),
+    });
+  it("marca palas, cajones, niveladoras, retroexcavadoras y chipeadoras sin etiqueta", () => {
+    const titulos = [
+      "Palas frontales para DF 554",
+      "Pala cajón trasera - Mecánica 1.20mts",
+      "Pala niveladora 1.60mts",
+      "Retroexcavadora LW-6",
+      "Chipeadora BX 42",
+      "Apreta fardos para palas frontales DF 904",
+    ];
+    expect(productos(titulos).every((p) => p.sospechaIva)).toBe(true);
+  });
+  it("no marca el tractor que viene con pala incluida ni el resto de las herramientas", () => {
+    const titulos = [
+      "Dong Feng DF 554 con Pala frontal",
+      "Dong Feng DF 554 con cabina Pala frontal",
+      "Rastra de 18 discos",
+      "Farmtrac FT 6050 - 50HP - 4x4",
+    ];
+    expect(productos(titulos).some((p) => p.sospechaIva)).toBe(false);
+  });
+});
 ```
 
 **Acceptance**
 
 1. **WHEN** se normaliza `tests/fixtures/productos-shopify.json` **THE SYSTEM SHALL** excluir los productos con precio 0 y usar el id de variante con el precio en centavos (Farmtrac FT 6050 → id 50605744423200 y 1790000).
-2. **WHEN** un producto tiene la etiqueta `iva-incluido` **THE SYSTEM SHALL** marcarlo con `ivaIncluido: true` y `sospechaIva: false`, y **WHEN** una pala frontal, pala cajón, retroexcavadora o chipeadora no la tiene **THE SYSTEM SHALL** marcarla con `sospechaIva: true`.
+2. **WHEN** un producto tiene la etiqueta `iva-incluido` **THE SYSTEM SHALL** marcarlo con `ivaIncluido: true` y `sospechaIva: false`, y **WHEN** una pala frontal, pala cajón, pala niveladora, retroexcavadora o chipeadora sin la etiqueta no es un tractor vendido con la pala incluida **THE SYSTEM SHALL** marcarla con `sospechaIva: true`.
 3. **WHEN** se limpia una descripción **THE SYSTEM SHALL** devolver líneas con ids L1…Ln, solo caracteres WinAnsi y sin menciones a WhatsApp, financiación, Santander, cuotas, precalificación ni precios escritos a mano («CONTADO U$S 2610»).
 4. **WHEN** una descripción tiene las secciones «Ideal para», «Ficha técnica» y «El respaldo Florencio Hernández» **THE SYSTEM SHALL** marcar con `importante: false` los títulos y líneas de «Ideal para» y «El respaldo Florencio Hernández», y con `importante: true` los de «Ficha técnica».
 5. **WHEN** la primera página de Shopify trae 250 productos **THE SYSTEM SHALL** pedir la página 2 y juntar las dos.

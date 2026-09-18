@@ -37,7 +37,10 @@ export type Producto = {
   esRepuesto: boolean;
 };
 
-const SOSPECHA_IVA = /\b(palas?\s+frontal(es)?|pala\s+cajon|retroexcavadora|chipeadora)/;
+const SOSPECHA_IVA =
+  /\b(palas?\s+frontal(es)?|pala\s+cajon|pala\s+niveladora|retroexcavadora|chipeadora)/;
+// Un tractor vendido con la pala incluida sigue exento: el combo no lleva IVA (decidido 2026-09-18).
+const TRACTOR_CON_PALA = /(dong feng|iseki|farmtrac|landtrac).*con .*pala/;
 
 export function sinAcentos(texto: string): string {
   return texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -72,7 +75,10 @@ export function normalizarProductos(productos: ProductoShopify[]): Producto[] {
         imagenUrl: imagen ? urlImagenPdf(imagen) : null,
         lineas,
         ivaIncluido,
-        sospechaIva: !ivaIncluido && SOSPECHA_IVA.test(sinAcentos(titulo)),
+        sospechaIva:
+          !ivaIncluido &&
+          SOSPECHA_IVA.test(sinAcentos(titulo)) &&
+          !TRACTOR_CON_PALA.test(sinAcentos(titulo)),
         esRepuesto: (p.product_type ?? "").toLowerCase().startsWith("repuesto"),
       });
     }

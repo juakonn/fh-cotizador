@@ -101,7 +101,7 @@
     "priority": "p0",
     "acceptance": [
       "WHEN se normaliza `tests/fixtures/productos-shopify.json` THE SYSTEM SHALL excluir los productos con precio 0 y usar el id de variante con el precio en centavos (Farmtrac FT 6050 → id 50605744423200 y 1790000).",
-      "WHEN un producto tiene la etiqueta `iva-incluido` THE SYSTEM SHALL marcarlo con `ivaIncluido: true` y `sospechaIva: false`, y WHEN una pala frontal, pala cajón, retroexcavadora o chipeadora no la tiene THE SYSTEM SHALL marcarla con `sospechaIva: true`.",
+      "WHEN un producto tiene la etiqueta `iva-incluido` THE SYSTEM SHALL marcarlo con `ivaIncluido: true` y `sospechaIva: false`, y WHEN una pala frontal, pala cajón, pala niveladora, retroexcavadora o chipeadora sin la etiqueta no es un tractor vendido con la pala incluida THE SYSTEM SHALL marcarla con `sospechaIva: true`.",
       "WHEN se limpia una descripción THE SYSTEM SHALL devolver líneas con ids L1…Ln, solo caracteres WinAnsi y sin menciones a WhatsApp, financiación, Santander, cuotas, precalificación ni precios escritos a mano («CONTADO U$S 2610»).",
       "WHEN una descripción tiene las secciones «Ideal para», «Ficha técnica» y «El respaldo Florencio Hernández» THE SYSTEM SHALL marcar con `importante: false` los títulos y líneas de «Ideal para» y «El respaldo Florencio Hernández», y con `importante: true` los de «Ficha técnica».",
       "WHEN la primera página de Shopify trae 250 productos THE SYSTEM SHALL pedir la página 2 y juntar las dos.",

@@ -79,7 +79,8 @@ describe("normalizarCatalogo", () => {
   it("marca como sospechosos de IVA a palas frontales, palas cajón y retros sin etiqueta", () => {
     expect(porId(49362879217952)).toMatchObject({ ivaIncluido: false, sospechaIva: true });
     expect(porId(48058042155296)).toMatchObject({ ivaIncluido: false, sospechaIva: true });
-    expect(porId(47450481099040)).toMatchObject({ sospechaIva: false });
+    expect(porId(47450481099040)).toMatchObject({ sospechaIva: true }); // pala niveladora
+    expect(porId(50892293308704)).toMatchObject({ sospechaIva: false }); // tractor con pala: exento
   });
   it("marca los repuestos", () => {
     expect(catalogo.filter((p) => p.esRepuesto).length).toBeGreaterThan(0);
@@ -134,5 +135,37 @@ describe("obtenerCatalogo", () => {
       codigo: "SHOPIFY_NO_DISPONIBLE",
     });
     await expect(obtenerCatalogo({ fetchImpl })).rejects.toBeInstanceOf(ErrorCatalogo);
+  });
+});
+
+describe("sospecha de IVA", () => {
+  const productos = (titulos: string[]) =>
+    normalizarCatalogo({
+      products: titulos.map((title, i) => ({
+        id: i + 1,
+        title,
+        handle: `p${i}`,
+        variants: [{ id: 100 + i, title: "Default Title", price: "1000.00" }],
+      })),
+    });
+  it("marca palas, cajones, niveladoras, retroexcavadoras y chipeadoras sin etiqueta", () => {
+    const titulos = [
+      "Palas frontales para DF 554",
+      "Pala cajón trasera - Mecánica 1.20mts",
+      "Pala niveladora 1.60mts",
+      "Retroexcavadora LW-6",
+      "Chipeadora BX 42",
+      "Apreta fardos para palas frontales DF 904",
+    ];
+    expect(productos(titulos).every((p) => p.sospechaIva)).toBe(true);
+  });
+  it("no marca el tractor que viene con pala incluida ni el resto de las herramientas", () => {
+    const titulos = [
+      "Dong Feng DF 554 con Pala frontal",
+      "Dong Feng DF 554 con cabina Pala frontal",
+      "Rastra de 18 discos",
+      "Farmtrac FT 6050 - 50HP - 4x4",
+    ];
+    expect(productos(titulos).some((p) => p.sospechaIva)).toBe(false);
   });
 });

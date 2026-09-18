@@ -11,7 +11,8 @@ paths:
 - El id de un producto en la app es el **id de la variante** de Shopify. Las variantes con precio 0
   (tutoriales) se descartan.
 - `ivaIncluido` sale solo de la etiqueta `iva-incluido` (sin importar mayúsculas). `sospechaIva`
-  marca palas frontales, palas cajón, retroexcavadoras y chipeadoras sin la etiqueta: nunca se infiere el IVA.
+  marca palas frontales, palas cajón, palas niveladoras, retroexcavadoras y chipeadoras sin la etiqueta
+  (salvo el tractor que viene con la pala incluida, que queda exento): nunca se infiere el IVA.
 - Las descripciones se limpian con `limpiarDescripcion`: sin emojis, sin enlaces, sin llamados a
   WhatsApp, sin el bloque de financiación (la forma de pago ya va al pie del PDF) y sin precios escritos
   a mano. Las secciones de venta («Ideal para», «Por qué elegirlo», «El respaldo…») salen con
