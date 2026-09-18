@@ -55,9 +55,9 @@ const s = StyleSheet.create({
   foto: { flex: 1, height: "58mm", objectFit: "contain", marginRight: "5mm" },
   // Ficha larga: foto y precio en una columna a la izquierda, ficha técnica al lado.
   columnas: { flexDirection: "row", gap: "5mm" },
-  columnaIzquierda: { width: "66mm" },
+  columnaIzquierda: { width: "80mm" },
   columnaDerecha: { flex: 1 },
-  fotoColumna: { width: "100%", height: "48mm", objectFit: "contain", marginBottom: "3mm" },
+  fotoColumna: { width: "100%", height: "64mm", objectFit: "contain", marginBottom: "3mm" },
   productoTitulo: { fontFamily: "Helvetica-Bold", fontSize: 15, color: MARINO },
   barraChica: {
     width: "16mm",
@@ -87,7 +87,7 @@ const s = StyleSheet.create({
   parrafoApretado: { fontSize: 8.5, marginBottom: "1mm" },
   seccionApretada: { marginTop: "2mm", marginBottom: "0.5mm" },
   precios: {
-    width: "62mm",
+    width: "72mm",
     marginLeft: "auto",
     padding: "3mm",
     borderWidth: 0.7,
@@ -167,7 +167,7 @@ function LineaDescripcion({ linea, apretado }: { linea: Linea; apretado: boolean
 const LINEAS_PARA_DOS_COLUMNAS = 10;
 
 function altoFoto(filas: number): string {
-  return filas <= 8 ? "58mm" : "46mm";
+  return filas <= 8 ? "60mm" : "58mm";
 }
 
 function HojaProducto({
