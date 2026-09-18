@@ -174,7 +174,16 @@ Los otros tres módulos se implementan con estas reglas hasta que pase el test.
 
 `src/lib/pdf/documento.tsx`
 ```tsx
-import { Document, Image, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
+import {
+  Document,
+  Font,
+  Image,
+  Page,
+  renderToBuffer,
+  StyleSheet,
+  Text,
+  View,
+} from "@react-pdf/renderer";
 import type { Linea } from "@/lib/catalogo/descripcion";
 import type { Producto } from "@/lib/catalogo/normalizar";
 import { aWinAnsi } from "@/lib/catalogo/winansi";
@@ -204,6 +213,9 @@ const SUAVE = "#5b6878";
 const BORDE = "#d9dee7";
 const FONDO = "#f5f6f8";
 
+// En columnas angostas react-pdf parte palabras ("com- bustible"): se desactiva.
+Font.registerHyphenationCallback((palabra) => [palabra]);
+
 const s = StyleSheet.create({
   pagina: {
     paddingTop: "52mm",
@@ -231,9 +243,27 @@ const s = StyleSheet.create({
   foto: { flex: 1, height: "58mm", objectFit: "contain", marginRight: "5mm" },
   // Ficha larga: foto y precio en una columna a la izquierda, ficha técnica al lado.
   columnas: { flexDirection: "row", gap: "5mm" },
-  columnaIzquierda: { width: "80mm" },
+  columnaIzquierda: { width: "76mm" },
   columnaDerecha: { flex: 1 },
-  fotoColumna: { width: "100%", height: "64mm", objectFit: "contain", marginBottom: "3mm" },
+  marcoFoto: {
+    backgroundColor: FONDO,
+    borderWidth: 0.5,
+    borderColor: BORDE,
+    padding: "2mm",
+    marginBottom: "3mm",
+  },
+  fotoColumna: { width: "100%", height: "70mm", objectFit: "contain" },
+  precioDestacado: { backgroundColor: MARINO, padding: "3mm" },
+  precioEtiqueta: { fontSize: 7.5, color: "#c9d3de", letterSpacing: 0.6 },
+  precioGrande: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 16,
+    lineHeight: 1.25,
+    color: "#ffffff",
+    marginTop: "0.5mm",
+  },
+  precioLinea: { fontSize: 8.5, color: "#dbe3ec" },
+  precioIva: { fontSize: 7.5, color: DORADO, marginTop: "0.5mm" },
   productoTitulo: { fontFamily: "Helvetica-Bold", fontSize: 15, color: MARINO },
   barraChica: {
     width: "16mm",
@@ -244,10 +274,14 @@ const s = StyleSheet.create({
   },
   seccion: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 10,
+    fontSize: 9.5,
     color: MARINO,
+    letterSpacing: 0.8,
     marginTop: "3mm",
-    marginBottom: "1mm",
+    marginBottom: "1.5mm",
+    paddingBottom: "1mm",
+    borderBottomWidth: 1,
+    borderBottomColor: DORADO,
   },
   fila: {
     flexDirection: "row",
@@ -255,7 +289,9 @@ const s = StyleSheet.create({
     borderBottomColor: BORDE,
     paddingVertical: "0.7mm",
   },
-  filaEtiqueta: { width: "42%", fontFamily: "Helvetica-Bold", fontSize: 9, paddingRight: "3mm" },
+  filaEtiqueta: { width: "38%", fontFamily: "Helvetica-Bold", fontSize: 9, paddingRight: "3mm" },
+  filaGris: { backgroundColor: FONDO },
+  filaRelleno: { paddingHorizontal: "1.5mm" },
   filaValor: { flex: 1, fontSize: 9 },
   parrafo: { fontSize: 9, marginBottom: "1.5mm" },
   filaApretada: { paddingVertical: "0.3mm" },
@@ -310,8 +346,21 @@ function porcentaje(valor: number): string {
   return String(valor).replace(".", ",");
 }
 
-function LineaDescripcion({ linea, apretado }: { linea: Linea; apretado: boolean }) {
-  const fila = apretado ? [s.fila, s.filaApretada] : [s.fila];
+function LineaDescripcion({
+  linea,
+  apretado,
+  gris,
+}: {
+  linea: Linea;
+  apretado: boolean;
+  gris: boolean;
+}) {
+  const fila = [
+    s.fila,
+    s.filaRelleno,
+    ...(apretado ? [s.filaApretada] : []),
+    ...(gris ? [s.filaGris] : []),
+  ];
   const etiqueta = apretado ? [s.filaEtiqueta, s.textoApretado] : [s.filaEtiqueta];
   const valor = apretado ? [s.filaValor, s.textoApretado] : [s.filaValor];
   if (linea.tipo === "titulo") {
@@ -361,6 +410,26 @@ function HojaProducto({
   const visibles = (producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id));
   const d = item?.descuento ?? null;
   const dosColumnas = visibles.length > LINEAS_PARA_DOS_COLUMNAS;
+  const precioDestacado = (
+    <View style={s.precioDestacado} wrap={false}>
+      <Text style={s.precioEtiqueta}>PRECIO</Text>
+      <Text style={s.precioGrande}>{`Importe: ${formatearUSD(linea.netoCentavos)}`}</Text>
+      {linea.cantidad > 1 || linea.descuentoCentavos > 0 ? (
+        <Text style={s.precioLinea}>
+          {`Precio unitario: ${formatearUSD(linea.precioUnitarioCentavos)}`}
+        </Text>
+      ) : null}
+      {linea.cantidad > 1 ? (
+        <Text style={s.precioLinea}>{`Cantidad: ${linea.cantidad}`}</Text>
+      ) : null}
+      {linea.descuentoCentavos > 0 ? (
+        <Text style={s.precioLinea}>
+          {`Descuento${d?.tipo === "porcentaje" ? ` (${porcentaje(d.valor)}%)` : ""}: - ${formatearUSD(linea.descuentoCentavos)}`}
+        </Text>
+      ) : null}
+      <Text style={s.precioIva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+    </View>
+  );
   const precios = (
     <View style={s.precios} wrap={false}>
       <Text>{`Precio unitario: ${formatearUSD(linea.precioUnitarioCentavos)}`}</Text>
@@ -374,9 +443,18 @@ function HojaProducto({
       <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
     </View>
   );
-  const descripcion = visibles.map((l) => (
-    <LineaDescripcion key={l.id} linea={l} apretado={dosColumnas} />
-  ));
+  let franja = 0;
+  const descripcion = visibles.map((l) => {
+    if (l.tipo !== "titulo") franja += 1;
+    return (
+      <LineaDescripcion
+        key={l.id}
+        linea={l}
+        apretado={dosColumnas}
+        gris={l.tipo !== "titulo" && franja % 2 === 0}
+      />
+    );
+  });
   return (
     <View style={s.producto} break={!primera}>
       <Text style={s.productoTitulo}>{linea.titulo}</Text>
@@ -384,8 +462,12 @@ function HojaProducto({
       {dosColumnas ? (
         <View style={s.columnas}>
           <View style={s.columnaIzquierda} wrap={false}>
-            {foto ? <Image src={foto} style={s.fotoColumna} /> : null}
-            {precios}
+            {foto ? (
+              <View style={s.marcoFoto}>
+                <Image src={foto} style={s.fotoColumna} />
+              </View>
+            ) : null}
+            {precioDestacado}
           </View>
           <View style={s.columnaDerecha}>{descripcion}</View>
         </View>
@@ -638,7 +720,7 @@ describe("PDF de la factura proforma", () => {
       "Cliente: Agro Ejemplo S.A.",
       "RUT: 211234560019",
       "Farmtrac FT 6050 - 50HP - 4x4",
-      "Precio unitario: U$S 17.900",
+      "Precio unitario: U$S 7.300",
       "Exento de IVA",
       "Palas frontales para DF 554",
       "Descuento (5%): - U$S 365",
@@ -669,7 +751,7 @@ describe("PDF de la factura proforma", () => {
     expect(hojas.length).toBe(2);
     expect(hojas[0]).toContain("Farmtrac FT 6050 - 50HP - 4x4");
     expect(hojas[0]).not.toContain("Palas frontales para DF 554");
-    expect(hojas[0]).toContain("Precio unitario: U$S 17.900");
+    expect(hojas[0]).toContain("Importe: U$S 17.900");
     expect(hojas[0]).toContain("Barra antivuelco plegable");
     expect(hojas[0]).not.toContain("TOTAL:");
     const hojaPala = hojas.findIndex((h) => h.includes("Palas frontales para DF 554"));

@@ -132,7 +132,7 @@ describe("PDF de la factura proforma", () => {
       "Cliente: Agro Ejemplo S.A.",
       "RUT: 211234560019",
       "Farmtrac FT 6050 - 50HP - 4x4",
-      "Precio unitario: U$S 17.900",
+      "Precio unitario: U$S 7.300",
       "Exento de IVA",
       "Palas frontales para DF 554",
       "Descuento (5%): - U$S 365",
@@ -163,7 +163,7 @@ describe("PDF de la factura proforma", () => {
     expect(hojas.length).toBe(2);
     expect(hojas[0]).toContain("Farmtrac FT 6050 - 50HP - 4x4");
     expect(hojas[0]).not.toContain("Palas frontales para DF 554");
-    expect(hojas[0]).toContain("Precio unitario: U$S 17.900");
+    expect(hojas[0]).toContain("Importe: U$S 17.900");
     expect(hojas[0]).toContain("Barra antivuelco plegable");
     expect(hojas[0]).not.toContain("TOTAL:");
     const hojaPala = hojas.findIndex((h) => h.includes("Palas frontales para DF 554"));
