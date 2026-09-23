@@ -229,6 +229,8 @@ paso de §9 que lo nombra en su lista de archivos.
 | `cantidad` | number | entero 1–99 | |
 | `descuento` | `Descuento \| null` | | del ítem, antes del general |
 | `lineasOcultas` | string[] | ids `L*` | líneas de la descripción que no van al PDF; al agregar arranca con las líneas `importante: false` |
+| `agregados` | string[] | hasta 6, 120 caracteres | líneas escritas por el vendedor que se suman al final de la ficha |
+| `precioManualCentavos` | number \| null | entero positivo | precio puesto a mano para esta cotización; `null` = vale el de la web |
 | `mostrarFoto` | boolean | por defecto true | |
 | `precioVistoCentavos` | number | entero ≥ 0 | precio que vio quien cotiza; si la web cambió, la API responde 409 |
 
@@ -604,7 +606,7 @@ Crear `src/lib/cotizacion/tipos.ts` y `esquema.ts` (literales), `calculo.ts` y `
 
 **Done when**
 - [ ] WHEN la cotización tiene el Farmtrac FT 6050 (U$S 17.900) y las Palas frontales para DF 554 (U$S 7.300) THE SYSTEM SHALL calcular subtotal y total de 2520000 centavos con IVA `mixto`.
-- [ ] WHEN la pala tiene 5% de descuento y hay un descuento general de U$S 500 THE SYSTEM SHALL calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos.
+- [ ] WHEN la pala tiene 5% de descuento y hay un descuento general de U$S 500 THE SYSTEM SHALL calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos, y WHEN el ítem tiene `precioManualCentavos` THE SYSTEM SHALL usar ese precio en lugar del de la web.
 - [ ] WHEN un producto de la cotización ya no está en el catálogo THE SYSTEM SHALL devolver `PRODUCTO_NO_DISPONIBLE` con su id.
 - [ ] WHEN el borrador está vacío THE SYSTEM SHALL pedir productos y plazo de entrega, y WHEN es factura proforma sin cliente THE SYSTEM SHALL pedir los datos del cliente.
 - [ ] WHEN el RUT del cliente es inválido o un producto tiene `sospechaIva` THE SYSTEM SHALL devolver una advertencia sin sumar problemas que bloqueen el PDF.
@@ -631,7 +633,7 @@ Crear `src/lib/cotizacion/reducer.ts` (con el tipo `Accion` literal) y `persiste
 
 **Done when**
 - [ ] WHEN se agrega dos veces el mismo producto THE SYSTEM SHALL dejar un solo ítem con cantidad 2 y el precio visto de la web.
-- [ ] WHEN se pide cantidad 500 o validez 0 THE SYSTEM SHALL acotarlas a 99 y a 1.
+- [ ] WHEN se pide cantidad 500 o validez 0 THE SYSTEM SHALL acotarlas a 99 y a 1, y WHEN se escriben detalles propios del ítem THE SYSTEM SHALL guardar hasta 6, recortados y sin los vacíos.
 - [ ] WHEN se aplican varias acciones juntas y después Deshacer THE SYSTEM SHALL volver al estado anterior a todas ellas en un solo paso.
 - [ ] WHEN se hicieron 40 cambios THE SYSTEM SHALL guardar como máximo 30 pasos de Deshacer.
 - [ ] WHEN el borrador guardado en el navegador está corrupto o es de otra versión THE SYSTEM SHALL ignorarlo y devolver `null`.
@@ -686,7 +688,7 @@ Crear `src/lib/pdf/documento.tsx` (literal), `fecha.ts`, `archivo.ts` e `imagene
 **Done when**
 - [ ] WHEN se genera la proforma de prueba (Farmtrac FT 6050 más Palas frontales para DF 554 con 5%) THE SYSTEM SHALL producir un PDF de menos de 2,5 MB cuyo texto contiene «FACTURA PROFORMA», «TOTAL: U$S 24.835» y «(Dólares americanos veinticuatro mil ochocientos treinta y cinco)».
 - [ ] WHEN la proforma de prueba tiene 2 productos THE SYSTEM SHALL producir 2 hojas: la primera con el Farmtrac FT 6050, su precio y su ficha técnica hasta «Barra antivuelco plegable», sin las Palas frontales para DF 554 ni «TOTAL:»; la segunda con las Palas frontales para DF 554, «TOTAL: U$S 24.835» y la forma de pago, y WHEN la cotización tiene un solo producto con toda su ficha técnica THE SYSTEM SHALL producir una sola hoja con la ficha, el «TOTAL:» y la forma de pago.
-- [ ] WHEN un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) THE SYSTEM SHALL dejar ese texto fuera del PDF («Por qué elegirlo» no aparece) y mostrar la ficha técnica («Tanque de combustible 60 litros»).
+- [ ] WHEN un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) THE SYSTEM SHALL dejar ese texto fuera del PDF («Por qué elegirlo» no aparece), mostrar la ficha técnica («Tanque de combustible 60 litros») y escribir al final los detalles agregados a mano.
 - [ ] WHEN el documento es una cotización sin cliente THE SYSTEM SHALL titularlo «COTIZACIÓN» y no escribir «Cliente:», y WHEN el vendedor es Joaquín con otro celular guardado THE SYSTEM SHALL escribir «Atendido por: Joaquín · Cel. 092 469 449».
 - [ ] WHEN la fecha es 2026-09-11T02:30:00Z THE SYSTEM SHALL escribir «10 de setiembre de 2026» (hora de Montevideo), y WHEN se arma el nombre del archivo de la proforma de prueba THE SYSTEM SHALL devolver «Proforma - Agro Ejemplo S.A. - Farmtrac FT 6050 - 50HP - 4x4 - 2026-09-11.pdf».
 - [ ] WHEN una foto llega como PNG pesado con transparencia THE SYSTEM SHALL convertirla en un JPG de menos de 400 KB, y un PDF con 3 fotos así THE SYSTEM SHALL dejarlo por debajo de 4 MB (Vercel corta respuestas de más de 4,5 MB).

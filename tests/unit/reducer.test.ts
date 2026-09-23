@@ -50,6 +50,8 @@ describe("aplicar", () => {
         lineasOcultas: [],
         mostrarFoto: true,
         precioVistoCentavos: 730000,
+        agregados: [],
+        precioManualCentavos: null,
       },
     ]);
   });
@@ -127,5 +129,27 @@ describe("persistencia", () => {
       vendedorCelular: "099 123 456",
     });
     expect(leerEmisor(almacen).sucursal).toBe("montevideo");
+  });
+});
+
+describe("precio a mano y detalles escritos", () => {
+  it("cambia el precio del ítem y vuelve al de la web", () => {
+    let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
+    b = aplicar(b, { tipo: "precioManual", productoId: FARMTRAC.id, centavos: 1650000 });
+    expect(b.items[0].precioManualCentavos).toBe(1650000);
+    b = aplicar(b, { tipo: "precioManual", productoId: FARMTRAC.id, centavos: null });
+    expect(b.items[0].precioManualCentavos).toBeNull();
+  });
+  it("suma detalles escritos, ignora los vacíos, corta en 6 y los saca por posición", () => {
+    let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
+    b = aplicar(b, { tipo: "agregado", productoId: FARMTRAC.id, texto: "  Plato con cadenas  " });
+    b = aplicar(b, { tipo: "agregado", productoId: FARMTRAC.id, texto: "   " });
+    expect(b.items[0].agregados).toEqual(["Plato con cadenas"]);
+    for (let i = 0; i < 8; i++) {
+      b = aplicar(b, { tipo: "agregado", productoId: FARMTRAC.id, texto: `extra ${i}` });
+    }
+    expect(b.items[0].agregados.length).toBe(6);
+    b = aplicar(b, { tipo: "quitarAgregado", productoId: FARMTRAC.id, indice: 0 });
+    expect(b.items[0].agregados[0]).toBe("extra 0");
   });
 });

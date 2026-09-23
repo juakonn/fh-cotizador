@@ -42,7 +42,8 @@ con `src/lib/cotizacion/reducer.ts`, borrador en localStorage con `persistencia.
 compara precios, baja fotos) → `src/lib/pdf/documento.tsx` → PDF.
 
 **Fuente de verdad: Shopify.** Precios, títulos, descripciones, fotos y la etiqueta `iva-incluido` se
-leen de `https://florenciohernandez.com.uy/products.json`. La app nunca guarda ni edita precios.
+leen de `https://florenciohernandez.com.uy/products.json`. La app no guarda ni edita el catálogo: lo que
+el vendedor cambia a mano vive solo en el borrador de esa cotización.
 
 | Capa | Puede importar | Nunca |
 |---|---|---|
@@ -119,7 +120,9 @@ leen de `https://florenciohernandez.com.uy/products.json`. La app nunca guarda n
 
 ## No negociable
 
-1. Shopify es la única fuente de precios: nada de precios cargados a mano ni guardados en el servidor.
+1. Shopify es la única fuente de precios y descripciones. El vendedor puede pisarlos **por cotización**
+   (`precioManualCentavos` y `agregados` del ítem, que viajan en el borrador): nunca se guarda un precio
+   en el servidor ni se edita el catálogo desde la app.
 2. Número y letras del total salen del mismo entero en centavos.
 3. Sin plazo de entrega no hay PDF, y la factura proforma exige cliente.
 4. Costo mensual cero: sin base de datos, sin IA, sin servicios con clave o pagos.

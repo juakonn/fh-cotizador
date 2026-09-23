@@ -46,6 +46,8 @@ function proforma(): Borrador {
         lineasOcultas: ["L1", ...deVenta(FARMTRAC)],
         mostrarFoto: true,
         precioVistoCentavos: 1790000,
+        agregados: [],
+        precioManualCentavos: null,
       },
       {
         productoId: PALA_554,
@@ -54,6 +56,8 @@ function proforma(): Borrador {
         lineasOcultas: [],
         mostrarFoto: true,
         precioVistoCentavos: 730000,
+        agregados: [],
+        precioManualCentavos: null,
       },
     ],
     entrega: { tipo: "inmediata" },
@@ -200,6 +204,8 @@ describe("PDF de la factura proforma", () => {
           lineasOcultas: deVenta(FARMTRAC),
           mostrarFoto: true,
           precioVistoCentavos: 1790000,
+          agregados: [],
+          precioManualCentavos: null,
         },
       ],
     };
@@ -210,6 +216,24 @@ describe("PDF de la factura proforma", () => {
     expect(hoja).toContain("Barra antivuelco plegable");
     expect(hoja).toContain("TOTAL: U$S 17.900");
     expect(hoja).toContain("Forma de pago: contado o financiado con Mi Maquinaria by Santander.");
+  });
+  it("escribe en el PDF los detalles agregados a mano y el precio del vendedor", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      items: [
+        {
+          ...proforma().items[0],
+          agregados: ["Incluye plato con cadenas", "Cubiertas nuevas"],
+          precioManualCentavos: 1650000,
+        },
+        proforma().items[1],
+      ],
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("Incluye plato con cadenas");
+    expect(texto).toContain("Cubiertas nuevas");
+    expect(texto).toContain("Importe: U$S 16.500");
+    expect(texto).not.toContain("Importe: U$S 17.900");
   });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
@@ -269,6 +293,8 @@ describe("peso del PDF", () => {
           lineasOcultas: [],
           mostrarFoto: true,
           precioVistoCentavos: 590000,
+          agregados: [],
+          precioManualCentavos: null,
         },
       ],
     };

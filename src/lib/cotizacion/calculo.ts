@@ -24,13 +24,14 @@ export function calcularTotales(borrador: Borrador, catalogo: Producto[]): Resul
       faltantes.push(item.productoId);
       continue;
     }
-    const brutoCentavos = producto.precioCentavos * item.cantidad;
+    const unitarioCentavos = item.precioManualCentavos ?? producto.precioCentavos;
+    const brutoCentavos = unitarioCentavos * item.cantidad;
     const descuentoCentavos = calcularDescuento(brutoCentavos, item.descuento);
     lineas.push({
       productoId: producto.id,
       titulo: producto.titulo,
       cantidad: item.cantidad,
-      precioUnitarioCentavos: producto.precioCentavos,
+      precioUnitarioCentavos: unitarioCentavos,
       brutoCentavos,
       descuentoCentavos,
       netoCentavos: brutoCentavos - descuentoCentavos,

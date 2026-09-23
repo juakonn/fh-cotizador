@@ -27,6 +27,9 @@ export const esquemaItem = z.object({
   lineasOcultas: z.array(z.string().max(10)).max(200),
   mostrarFoto: z.boolean(),
   precioVistoCentavos: z.number().int().nonnegative(),
+  // Con `default` los borradores guardados antes de esta versión siguen siendo válidos.
+  agregados: z.array(z.string().trim().min(1).max(120)).max(6).default([]),
+  precioManualCentavos: z.number().int().positive().max(100_000_000).nullable().default(null),
 });
 
 export const esquemaBorrador = z.object({

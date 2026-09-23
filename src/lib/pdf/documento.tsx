@@ -231,7 +231,16 @@ function HojaProducto({
   const item = datos.borrador.items.find((i) => i.productoId === linea.productoId);
   const producto = datos.productos.find((p) => p.id === linea.productoId);
   const foto = item?.mostrarFoto ? (datos.fotos[linea.productoId] ?? null) : null;
-  const visibles = (producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id));
+  const propias = (item?.agregados ?? []).map((texto, n) => ({
+    id: `A${n + 1}`,
+    tipo: "item" as const,
+    texto: aWinAnsi(texto),
+    importante: true,
+  }));
+  const visibles = [
+    ...(producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id)),
+    ...propias,
+  ];
   const d = item?.descuento ?? null;
   const dosColumnas = visibles.length > LINEAS_PARA_DOS_COLUMNAS;
   const precioDestacado = (

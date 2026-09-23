@@ -32,6 +32,8 @@ function cotizacion(precioVistoCentavos = 1790000): Borrador {
         descuento: null,
         lineasOcultas: [],
         mostrarFoto: true,
+        agregados: [],
+        precioManualCentavos: null,
         precioVistoCentavos,
       },
     ],

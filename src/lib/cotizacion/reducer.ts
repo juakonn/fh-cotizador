@@ -21,6 +21,9 @@ export type Accion =
   | { tipo: "ocultarLinea"; productoId: number; lineaId: string; oculta: boolean }
   | { tipo: "mostrarFoto"; productoId: number; mostrar: boolean }
   | { tipo: "actualizarPrecio"; productoId: number; precioCentavos: number }
+  | { tipo: "precioManual"; productoId: number; centavos: number | null }
+  | { tipo: "agregado"; productoId: number; texto: string }
+  | { tipo: "quitarAgregado"; productoId: number; indice: number }
   | { tipo: "nota"; texto: string }
   | { tipo: "quitarNota"; indice: number }
   | { tipo: "nuevo" }
@@ -28,6 +31,7 @@ export type Accion =
 
 const MAX_HISTORIAL = 30;
 const MAX_NOTAS = 10;
+const MAX_AGREGADOS = 6;
 
 function acotar(valor: number, minimo: number, maximo: number): number {
   return Math.min(maximo, Math.max(minimo, Math.round(valor)));
@@ -62,6 +66,8 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
             lineasOcultas: a.producto.lineas.filter((l) => !l.importante).map((l) => l.id),
             mostrarFoto: true,
             precioVistoCentavos: a.producto.precioCentavos,
+            agregados: [],
+            precioManualCentavos: null,
           },
         ],
       };
@@ -113,6 +119,40 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
         ...b,
         items: b.items.map((i) =>
           i.productoId === a.productoId ? { ...i, precioVistoCentavos: a.precioCentavos } : i,
+        ),
+      };
+    case "precioManual":
+      return {
+        ...b,
+        items: b.items.map((i) =>
+          i.productoId === a.productoId
+            ? {
+                ...i,
+                precioManualCentavos:
+                  a.centavos === null ? null : Math.max(1, Math.round(a.centavos)),
+              }
+            : i,
+        ),
+      };
+    case "agregado": {
+      const texto = a.texto.trim().slice(0, 120);
+      if (!texto) return b;
+      return {
+        ...b,
+        items: b.items.map((i) =>
+          i.productoId === a.productoId && i.agregados.length < MAX_AGREGADOS
+            ? { ...i, agregados: [...i.agregados, texto] }
+            : i,
+        ),
+      };
+    }
+    case "quitarAgregado":
+      return {
+        ...b,
+        items: b.items.map((i) =>
+          i.productoId === a.productoId
+            ? { ...i, agregados: i.agregados.filter((_, n) => n !== a.indice) }
+            : i,
         ),
       };
     case "nota": {

@@ -15,7 +15,10 @@ paths:
   «Etiqueta: valor» como filas de tabla. Con más de 10 líneas visibles el producto pasa a dos columnas
   (foto y precio a la izquierda, ficha al lado) para que el cierre entre en la misma hoja. El cierre (resumen si hay 2 o más productos, total, condiciones,
   notas y «Atendido por») va en un único bloque `wrap={false}` después del último producto.
-- Medidas, peso y equipamiento salen solo de la descripción de Shopify: si faltan, se cargan en la web.
+- Medidas, peso y equipamiento salen de la descripción de Shopify más los `agregados` del ítem (líneas
+  escritas a mano para esa cotización), que van al final de la ficha.
+- El precio de la línea es `precioManualCentavos ?? precioCentavos` del producto; con precio a mano no
+  se controla el cambio de precio de la web.
 - Fuentes estándar (`Helvetica`, `Helvetica-Bold`, `Helvetica-Oblique`). No se registran fuentes.
 - Todo texto variable pasa por `aWinAnsi()` antes de entrar a un `<Text>`.
 - Cada frase que un test busca (por ejemplo `TOTAL: U$S 24.835`) es un único string dentro de un

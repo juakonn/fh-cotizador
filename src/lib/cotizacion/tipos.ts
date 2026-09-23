@@ -20,6 +20,10 @@ export type Item = {
   lineasOcultas: string[];
   mostrarFoto: boolean;
   precioVistoCentavos: number;
+  // Líneas escritas a mano que se suman a la descripción de la web (ej. "Plato con cadenas").
+  agregados: string[];
+  // Precio puesto a mano para esta cotización; null = vale el de la web.
+  precioManualCentavos: number | null;
 };
 
 export type Borrador = {

@@ -1111,6 +1111,10 @@ export type Item = {
   lineasOcultas: string[];
   mostrarFoto: boolean;
   precioVistoCentavos: number;
+  // Líneas escritas a mano que se suman a la descripción de la web (ej. "Plato con cadenas").
+  agregados: string[];
+  // Precio puesto a mano para esta cotización; null = vale el de la web.
+  precioManualCentavos: number | null;
 };
 
 export type Borrador = {
@@ -1200,6 +1204,9 @@ export const esquemaItem = z.object({
   lineasOcultas: z.array(z.string().max(10)).max(200),
   mostrarFoto: z.boolean(),
   precioVistoCentavos: z.number().int().nonnegative(),
+  // Con `default` los borradores guardados antes de esta versión siguen siendo válidos.
+  agregados: z.array(z.string().trim().min(1).max(120)).max(6).default([]),
+  precioManualCentavos: z.number().int().positive().max(100_000_000).nullable().default(null),
 });
 
 export const esquemaBorrador = z.object({
@@ -1288,6 +1295,8 @@ function item(productoId: number, extra: Partial<Item> = {}): Item {
     lineasOcultas: [],
     mostrarFoto: true,
     precioVistoCentavos: 0,
+    agregados: [],
+    precioManualCentavos: null,
     ...extra,
   };
 }
@@ -1446,12 +1455,37 @@ describe("esquemaSolicitudPdf", () => {
     expect(esquemaSolicitudPdf.safeParse(porcentaje).success).toBe(false);
   });
 });
+
+describe("precio puesto a mano", () => {
+  it("el total usa el precio del vendedor y no el de la web", () => {
+    const base = crearBorradorVacio();
+    const borrador = {
+      ...base,
+      items: [
+        {
+          productoId: FARMTRAC,
+          cantidad: 2,
+          descuento: null,
+          lineasOcultas: [],
+          mostrarFoto: true,
+          precioVistoCentavos: 1790000,
+          agregados: [],
+          precioManualCentavos: 1650000,
+        },
+      ],
+    };
+    const r = calcularTotales(borrador, catalogo);
+    if (!r.ok) throw new Error(r.mensaje);
+    expect(r.totales.lineas[0].precioUnitarioCentavos).toBe(1650000);
+    expect(r.totales.totalCentavos).toBe(3300000);
+  });
+});
 ```
 
 **Acceptance**
 
 1. **WHEN** la cotización tiene el Farmtrac FT 6050 (U$S 17.900) y las Palas frontales para DF 554 (U$S 7.300) **THE SYSTEM SHALL** calcular subtotal y total de 2520000 centavos con IVA `mixto`.
-2. **WHEN** la pala tiene 5% de descuento y hay un descuento general de U$S 500 **THE SYSTEM SHALL** calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos.
+2. **WHEN** la pala tiene 5% de descuento y hay un descuento general de U$S 500 **THE SYSTEM SHALL** calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos, y **WHEN** el ítem tiene `precioManualCentavos` **THE SYSTEM SHALL** usar ese precio en lugar del de la web.
 3. **WHEN** un producto de la cotización ya no está en el catálogo **THE SYSTEM SHALL** devolver `PRODUCTO_NO_DISPONIBLE` con su id.
 4. **WHEN** el borrador está vacío **THE SYSTEM SHALL** pedir productos y plazo de entrega, y **WHEN** es factura proforma sin cliente **THE SYSTEM SHALL** pedir los datos del cliente.
 5. **WHEN** el RUT del cliente es inválido o un producto tiene `sospechaIva` **THE SYSTEM SHALL** devolver una advertencia sin sumar problemas que bloqueen el PDF.
@@ -1495,18 +1529,24 @@ export type Accion =
   | { tipo: "ocultarLinea"; productoId: number; lineaId: string; oculta: boolean }
   | { tipo: "mostrarFoto"; productoId: number; mostrar: boolean }
   | { tipo: "actualizarPrecio"; productoId: number; precioCentavos: number }
+  | { tipo: "precioManual"; productoId: number; centavos: number | null }
+  | { tipo: "agregado"; productoId: number; texto: string }
+  | { tipo: "quitarAgregado"; productoId: number; indice: number }
   | { tipo: "nota"; texto: string }
   | { tipo: "quitarNota"; indice: number }
   | { tipo: "nuevo" }
-  | { tipo: "reemplazar"; borrador: Borrador };
+  | { tipo: "reemplazar";
 ```
 
 - `export function aplicar(b: Borrador, a: Accion): Borrador` — puro, nunca muta `b`:
   - `agregar`: si el producto ya está, suma la cantidad y actualiza `precioVistoCentavos`; si no, agrega
-    `{ productoId, cantidad, descuento: null, lineasOcultas: <ids de las líneas con importante=false>, mostrarFoto: true, precioVistoCentavos }`
+    `{ productoId, cantidad, descuento: null, lineasOcultas: <ids de las líneas con importante=false>, mostrarFoto: true, precioVistoCentavos, agregados: [], precioManualCentavos: null }`
     (las secciones de venta arrancan ocultas; el vendedor las puede volver a mostrar)
     al final. Cantidades acotadas y redondeadas a 1–99; validez a 1–365.
   - `ocultarLinea`: agrega o saca el id sin duplicarlo. `actualizarPrecio`: cambia `precioVistoCentavos`.
+  - `precioManual`: guarda el precio que puso el vendedor para esa cotización (`null` vuelve al de la
+    web). `agregado`: suma una línea escrita a mano al ítem (recortada, sin vacías, máximo 6);
+    `quitarAgregado`: la saca por posición.
   - `nota`: agrega el texto recortado (máx. 200 caracteres) si no está vacío y hay menos de 10 notas.
   - `nuevo`: `crearBorradorVacio()`. `reemplazar`: devuelve el borrador recibido.
 - `export type Historial = { actual: Borrador; pasado: Borrador[] };`
@@ -1581,6 +1621,8 @@ describe("aplicar", () => {
         lineasOcultas: [],
         mostrarFoto: true,
         precioVistoCentavos: 730000,
+        agregados: [],
+        precioManualCentavos: null,
       },
     ]);
   });
@@ -1660,12 +1702,34 @@ describe("persistencia", () => {
     expect(leerEmisor(almacen).sucursal).toBe("montevideo");
   });
 });
+
+describe("precio a mano y detalles escritos", () => {
+  it("cambia el precio del ítem y vuelve al de la web", () => {
+    let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
+    b = aplicar(b, { tipo: "precioManual", productoId: FARMTRAC.id, centavos: 1650000 });
+    expect(b.items[0].precioManualCentavos).toBe(1650000);
+    b = aplicar(b, { tipo: "precioManual", productoId: FARMTRAC.id, centavos: null });
+    expect(b.items[0].precioManualCentavos).toBeNull();
+  });
+  it("suma detalles escritos, ignora los vacíos, corta en 6 y los saca por posición", () => {
+    let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
+    b = aplicar(b, { tipo: "agregado", productoId: FARMTRAC.id, texto: "  Plato con cadenas  " });
+    b = aplicar(b, { tipo: "agregado", productoId: FARMTRAC.id, texto: "   " });
+    expect(b.items[0].agregados).toEqual(["Plato con cadenas"]);
+    for (let i = 0; i < 8; i++) {
+      b = aplicar(b, { tipo: "agregado", productoId: FARMTRAC.id, texto: `extra ${i}` });
+    }
+    expect(b.items[0].agregados.length).toBe(6);
+    b = aplicar(b, { tipo: "quitarAgregado", productoId: FARMTRAC.id, indice: 0 });
+    expect(b.items[0].agregados[0]).toBe("extra 0");
+  });
+});
 ```
 
 **Acceptance**
 
 1. **WHEN** se agrega dos veces el mismo producto **THE SYSTEM SHALL** dejar un solo ítem con cantidad 2 y el precio visto de la web.
-2. **WHEN** se pide cantidad 500 o validez 0 **THE SYSTEM SHALL** acotarlas a 99 y a 1.
+2. **WHEN** se pide cantidad 500 o validez 0 **THE SYSTEM SHALL** acotarlas a 99 y a 1, y **WHEN** se escriben detalles propios del ítem **THE SYSTEM SHALL** guardar hasta 6, recortados y sin los vacíos.
 3. **WHEN** se aplican varias acciones juntas y después Deshacer **THE SYSTEM SHALL** volver al estado anterior a todas ellas en un solo paso.
 4. **WHEN** se hicieron 40 cambios **THE SYSTEM SHALL** guardar como máximo 30 pasos de Deshacer.
 5. **WHEN** el borrador guardado en el navegador está corrupto o es de otra versión **THE SYSTEM SHALL** ignorarlo y devolver `null`.

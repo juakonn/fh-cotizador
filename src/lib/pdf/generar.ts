@@ -82,7 +82,8 @@ export async function generarPdf(cuerpo: unknown, deps: Dependencias): Promise<R
   const porId = new Map(catalogo.map((p) => [p.id, p]));
   const cambios = borrador.items.flatMap((i) => {
     const p = porId.get(i.productoId);
-    return p && p.precioCentavos !== i.precioVistoCentavos
+    // Un precio puesto a mano no se compara con la web: lo decidió el vendedor.
+    return p && i.precioManualCentavos === null && p.precioCentavos !== i.precioVistoCentavos
       ? [
           {
             productoId: p.id,

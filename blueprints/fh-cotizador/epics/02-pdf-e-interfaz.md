@@ -407,7 +407,16 @@ function HojaProducto({
   const item = datos.borrador.items.find((i) => i.productoId === linea.productoId);
   const producto = datos.productos.find((p) => p.id === linea.productoId);
   const foto = item?.mostrarFoto ? (datos.fotos[linea.productoId] ?? null) : null;
-  const visibles = (producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id));
+  const propias = (item?.agregados ?? []).map((texto, n) => ({
+    id: `A${n + 1}`,
+    tipo: "item" as const,
+    texto: aWinAnsi(texto),
+    importante: true,
+  }));
+  const visibles = [
+    ...(producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id)),
+    ...propias,
+  ];
   const d = item?.descuento ?? null;
   const dosColumnas = visibles.length > LINEAS_PARA_DOS_COLUMNAS;
   const precioDestacado = (
@@ -634,6 +643,8 @@ function proforma(): Borrador {
         lineasOcultas: ["L1", ...deVenta(FARMTRAC)],
         mostrarFoto: true,
         precioVistoCentavos: 1790000,
+        agregados: [],
+        precioManualCentavos: null,
       },
       {
         productoId: PALA_554,
@@ -642,6 +653,8 @@ function proforma(): Borrador {
         lineasOcultas: [],
         mostrarFoto: true,
         precioVistoCentavos: 730000,
+        agregados: [],
+        precioManualCentavos: null,
       },
     ],
     entrega: { tipo: "inmediata" },
@@ -788,6 +801,8 @@ describe("PDF de la factura proforma", () => {
           lineasOcultas: deVenta(FARMTRAC),
           mostrarFoto: true,
           precioVistoCentavos: 1790000,
+          agregados: [],
+          precioManualCentavos: null,
         },
       ],
     };
@@ -798,6 +813,24 @@ describe("PDF de la factura proforma", () => {
     expect(hoja).toContain("Barra antivuelco plegable");
     expect(hoja).toContain("TOTAL: U$S 17.900");
     expect(hoja).toContain("Forma de pago: contado o financiado con Mi Maquinaria by Santander.");
+  });
+  it("escribe en el PDF los detalles agregados a mano y el precio del vendedor", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      items: [
+        {
+          ...proforma().items[0],
+          agregados: ["Incluye plato con cadenas", "Cubiertas nuevas"],
+          precioManualCentavos: 1650000,
+        },
+        proforma().items[1],
+      ],
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("Incluye plato con cadenas");
+    expect(texto).toContain("Cubiertas nuevas");
+    expect(texto).toContain("Importe: U$S 16.500");
+    expect(texto).not.toContain("Importe: U$S 17.900");
   });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
@@ -857,6 +890,8 @@ describe("peso del PDF", () => {
           lineasOcultas: [],
           mostrarFoto: true,
           precioVistoCentavos: 590000,
+          agregados: [],
+          precioManualCentavos: null,
         },
       ],
     };
@@ -875,7 +910,7 @@ Copiado textual del array `acceptance` de esta tarea en `tasks.json`.
 
 1. **WHEN** se genera la proforma de prueba (Farmtrac FT 6050 más Palas frontales para DF 554 con 5%) **THE SYSTEM SHALL** producir un PDF de menos de 2,5 MB cuyo texto contiene «FACTURA PROFORMA», «TOTAL: U$S 24.835» y «(Dólares americanos veinticuatro mil ochocientos treinta y cinco)».
 2. **WHEN** la proforma de prueba tiene 2 productos **THE SYSTEM SHALL** producir 2 hojas: la primera con el Farmtrac FT 6050, su precio y su ficha técnica hasta «Barra antivuelco plegable», sin las Palas frontales para DF 554 ni «TOTAL:»; la segunda con las Palas frontales para DF 554, «TOTAL: U$S 24.835» y la forma de pago, y **WHEN** la cotización tiene un solo producto con toda su ficha técnica **THE SYSTEM SHALL** producir una sola hoja con la ficha, el «TOTAL:» y la forma de pago.
-3. **WHEN** un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) **THE SYSTEM SHALL** dejar ese texto fuera del PDF («Por qué elegirlo» no aparece) y mostrar la ficha técnica («Tanque de combustible 60 litros»).
+3. **WHEN** un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) **THE SYSTEM SHALL** dejar ese texto fuera del PDF («Por qué elegirlo» no aparece), mostrar la ficha técnica («Tanque de combustible 60 litros») y escribir al final los detalles agregados a mano.
 4. **WHEN** el documento es una cotización sin cliente **THE SYSTEM SHALL** titularlo «COTIZACIÓN» y no escribir «Cliente:», y **WHEN** el vendedor es Joaquín con otro celular guardado **THE SYSTEM SHALL** escribir «Atendido por: Joaquín · Cel. 092 469 449».
 5. **WHEN** la fecha es 2026-09-11T02:30:00Z **THE SYSTEM SHALL** escribir «10 de setiembre de 2026» (hora de Montevideo), y **WHEN** se arma el nombre del archivo de la proforma de prueba **THE SYSTEM SHALL** devolver «Proforma - Agro Ejemplo S.A. - Farmtrac FT 6050 - 50HP - 4x4 - 2026-09-11.pdf».
 6. **WHEN** una foto llega como PNG pesado con transparencia **THE SYSTEM SHALL** convertirla en un JPG de menos de 400 KB, y un PDF con 3 fotos así **THE SYSTEM SHALL** dejarlo por debajo de 4 MB (Vercel corta respuestas de más de 4,5 MB).
@@ -989,6 +1024,8 @@ function cotizacion(precioVistoCentavos = 1790000): Borrador {
         descuento: null,
         lineasOcultas: [],
         mostrarFoto: true,
+        agregados: [],
+        precioManualCentavos: null,
         precioVistoCentavos,
       },
     ],
@@ -1137,6 +1174,8 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | ItemCotizacion | cada línea | checkbox (marcado = se ve en el PDF) | el texto de la línea |
 | ItemCotizacion | ocultar todo | button | `Ocultar toda la descripción de <título>` |
 | ItemCotizacion | descuento | combobox + spinbutton | `Descuento de <título>` (opciones `Sin descuento`, `Porcentaje`, `Monto en U$S`) · `Valor del descuento de <título>` |
+| ItemCotizacion | precio | spinbutton + button | `Precio de <título>` · `Usar el precio de la web de <título>` (solo con precio a mano) |
+| ItemCotizacion | detalle propio | textbox + button · button | `Agregar al detalle de <título>` + `Agregar` · `Quitar detalle <n> de <título>` |
 | Condiciones (E2-T4) | validez | spinbutton | `Validez (días)` |
 | Condiciones (E2-T4) | entrega | radios · spinbutton · textbox | `Entrega inmediata`, `En días`, `Otro` · `Días de entrega` · `Texto de entrega` |
 | Condiciones (E2-T4) | descuento general | combobox + spinbutton | `Descuento general` · `Valor del descuento general` |
@@ -1166,6 +1205,8 @@ Qué hace cada archivo en esta tarea:
   `buscarProductos(consulta, catalogo, { enBorrador })`; tocar uno despacha `agregar` (cantidad 1) y
   limpia la búsqueda; sin resultados muestra «No hay productos con esa búsqueda».
 - `ItemCotizacion.tsx`: título, precio, cantidad, descuento del ítem, foto, descripción desplegable con
+  el precio del ítem (`precioManual`, con «Precio de la web» para volver al de Shopify), las líneas
+  propias escritas a mano (`agregado` / `quitarAgregado`),
   una casilla por línea (despacha `ocultarLinea`) y «Ocultar toda la descripción» (despacha un
   `ocultarLinea` por cada línea en un solo `despachar`: un solo paso de Deshacer). Las casillas de las
   secciones de venta arrancan destildadas porque el reducer las agrega ocultas. Si el producto

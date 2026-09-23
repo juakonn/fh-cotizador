@@ -26,6 +26,8 @@ function item(productoId: number, extra: Partial<Item> = {}): Item {
     lineasOcultas: [],
     mostrarFoto: true,
     precioVistoCentavos: 0,
+    agregados: [],
+    precioManualCentavos: null,
     ...extra,
   };
 }
@@ -182,5 +184,30 @@ describe("esquemaSolicitudPdf", () => {
     };
     expect(esquemaSolicitudPdf.safeParse(cantidadCero).success).toBe(false);
     expect(esquemaSolicitudPdf.safeParse(porcentaje).success).toBe(false);
+  });
+});
+
+describe("precio puesto a mano", () => {
+  it("el total usa el precio del vendedor y no el de la web", () => {
+    const base = crearBorradorVacio();
+    const borrador = {
+      ...base,
+      items: [
+        {
+          productoId: FARMTRAC,
+          cantidad: 2,
+          descuento: null,
+          lineasOcultas: [],
+          mostrarFoto: true,
+          precioVistoCentavos: 1790000,
+          agregados: [],
+          precioManualCentavos: 1650000,
+        },
+      ],
+    };
+    const r = calcularTotales(borrador, catalogo);
+    if (!r.ok) throw new Error(r.mensaje);
+    expect(r.totales.lineas[0].precioUnitarioCentavos).toBe(1650000);
+    expect(r.totales.totalCentavos).toBe(3300000);
   });
 });
