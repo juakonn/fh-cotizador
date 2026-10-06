@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Producto } from "@/lib/catalogo/normalizar";
+import { leerBorradorDeUrl, limpiarUrl } from "@/lib/cotizacion/desdeUrl";
 import { guardarBorrador, leerBorrador, leerEmisor } from "@/lib/cotizacion/persistencia";
 import {
   type Accion,
@@ -10,7 +11,12 @@ import {
   deshacer,
   type Historial,
 } from "@/lib/cotizacion/reducer";
-import { crearEmisorPorDefecto, type Emisor, type TipoDocumento } from "@/lib/cotizacion/tipos";
+import {
+  type Borrador,
+  crearEmisorPorDefecto,
+  type Emisor,
+  type TipoDocumento,
+} from "@/lib/cotizacion/tipos";
 import { advertencias } from "@/lib/cotizacion/validacion";
 import { AjustesDispositivo } from "./AjustesDispositivo";
 import { BarraTotal } from "./BarraTotal";
@@ -30,11 +36,32 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
   const [historial, setHistorial] = useState<Historial>(() => crearHistorial());
   const [emisor, setEmisor] = useState<Emisor>(() => crearEmisorPorDefecto());
   const [cargado, setCargado] = useState(false);
+  const [desdeLlamado, setDesdeLlamado] = useState(false);
+  const deLaUrl = useRef<Borrador | null | undefined>(undefined);
   const borrador = historial.actual;
 
   useEffect(() => {
-    const guardado = leerBorrador(window.localStorage);
-    if (guardado) setHistorial(crearHistorial(guardado));
+    // Si la dirección trae una cotización armada (el botón del mail de
+    // licitaciones), esa gana sobre el borrador guardado: el vendedor entró
+    // justamente a armar esa. Después se limpia el parámetro para que al
+    // recargar no vuelva a pisar lo que haya editado.
+    //
+    // Lo leído se recuerda en `deLaUrl` porque en desarrollo React monta el
+    // componente dos veces: en la segunda el parámetro ya no está, y sin esto
+    // la cotización recién cargada se pisaba con el borrador viejo.
+    if (deLaUrl.current === undefined) {
+      deLaUrl.current = leerBorradorDeUrl(window.location.search);
+      if (deLaUrl.current) limpiarUrl(window);
+    }
+
+    const deUrl = deLaUrl.current;
+    if (deUrl) {
+      setHistorial(crearHistorial(deUrl));
+      setDesdeLlamado(true);
+    } else {
+      const guardado = leerBorrador(window.localStorage);
+      if (guardado) setHistorial(crearHistorial(guardado));
+    }
     setEmisor(leerEmisor(window.localStorage));
     setCargado(true);
   }, []);
@@ -81,6 +108,13 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
           <AjustesDispositivo emisor={emisor} alGuardar={setEmisor} />
         </div>
       </header>
+
+      {desdeLlamado && (
+        <p className="rounded-lg border border-dorado bg-superficie px-3 py-2 text-sm text-texto-suave">
+          Cotización armada desde un llamado del Estado. Revisá el precio antes de exportar: en una
+          licitación casi nunca es el de lista.
+        </p>
+      )}
 
       <section className={TARJETA}>
         <fieldset>
