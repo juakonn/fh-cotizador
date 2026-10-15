@@ -12,7 +12,15 @@ import type { Linea } from "@/lib/catalogo/descripcion";
 import type { Producto } from "@/lib/catalogo/normalizar";
 import { aWinAnsi } from "@/lib/catalogo/winansi";
 import { celularDelVendedor, TEXTO_FORMA_DE_PAGO } from "@/lib/config/negocio";
-import type { Borrador, Emisor, Entrega, LineaCalculada, Totales } from "@/lib/cotizacion/tipos";
+import { calcularPlanDePago, type PlanDePago } from "@/lib/cotizacion/calculo";
+import type {
+  Borrador,
+  Cliente,
+  Emisor,
+  Entrega,
+  LineaCalculada,
+  Totales,
+} from "@/lib/cotizacion/tipos";
 import { formatearUSD } from "@/lib/dinero/formato";
 import { montoEnLetras } from "@/lib/dinero/letras";
 import { formatearCedula, validarCedula } from "@/lib/documentos/identificacion";
@@ -132,8 +140,21 @@ const s = StyleSheet.create({
   },
   importe: { fontFamily: "Helvetica-Bold", fontSize: 11, color: MARINO },
   iva: { fontSize: 8, color: SUAVE },
+  cierre: { flexDirection: "row", gap: "6mm", marginTop: "7mm" },
+  cierreIzquierda: { flex: 1 },
+  cierreDerecha: { width: "74mm" },
+  cierreTitulo: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 9.5,
+    color: MARINO,
+    letterSpacing: 0.8,
+    marginBottom: "1.5mm",
+    paddingBottom: "1mm",
+    borderBottomWidth: 1,
+    borderBottomColor: DORADO,
+  },
   resumen: {
-    marginTop: "6mm",
+    marginTop: "0mm",
     padding: "3.5mm",
     backgroundColor: FONDO,
     borderLeftWidth: 3,
@@ -146,12 +167,33 @@ const s = StyleSheet.create({
   total: { fontFamily: "Helvetica-Bold", fontSize: 13, color: MARINO, marginTop: "2mm" },
   letras: { fontFamily: "Helvetica-Oblique", fontSize: 9 },
   condiciones: { marginTop: "4mm" },
+  formaDePagoTitulo: { fontFamily: "Helvetica-Bold", color: MARINO, marginTop: "1.5mm" },
   logoPago: { width: "33mm", height: "9mm", marginTop: "1.5mm" },
   notas: { marginTop: "3mm" },
   atendido: { marginTop: "3mm", color: SUAVE },
 });
 
 const ETIQUETA_VALOR = /^([^:]{2,40}):\s+(.+)$/;
+
+// Sin RUT ni cédula (organismos, instituciones) no se escribe la línea del documento.
+function documentoCliente(cliente: Cliente): string {
+  if (cliente.tipo === "empresa") return cliente.rut.trim() ? `RUT: ${cliente.rut.trim()}` : "";
+  const cedula = cliente.cedula.trim();
+  if (!cedula) return "";
+  const r = validarCedula(cedula);
+  return `C.I.: ${r.valido ? formatearCedula(r.normalizado) : cedula}`;
+}
+
+function textoPlanDePago(plan: PlanDePago, porcentaje: number): string[] {
+  const cuotasIguales = plan.cuotaCentavos === plan.ultimaCuotaCentavos;
+  const lineas = [
+    `Entrega: ${porcentaje}% — ${formatearUSD(plan.entregaCentavos)}.`,
+    cuotasIguales
+      ? `Saldo: ${plan.cuotas} ${plan.cuotas === 1 ? "cuota" : "cuotas"} de ${formatearUSD(plan.cuotaCentavos)}.`
+      : `Saldo: ${plan.cuotas - 1} de ${formatearUSD(plan.cuotaCentavos)} y una última de ${formatearUSD(plan.ultimaCuotaCentavos)}.`,
+  ];
+  return lineas;
+}
 
 function textoEntrega(entrega: Entrega | null): string {
   if (!entrega) return "A confirmar";
@@ -213,10 +255,18 @@ function LineaDescripcion({
 
 // Con muchas líneas de ficha, el producto se arma en dos columnas para que el cierre (total y
 // condiciones) entre en la misma hoja.
-const LINEAS_PARA_DOS_COLUMNAS = 10;
+// Con foto y al menos tres líneas el producto va en dos columnas: la foto se ve grande y el cierre
+// (total, condiciones y notas) entra en la misma hoja en vez de irse a la siguiente.
+const LINEAS_PARA_DOS_COLUMNAS = 3;
 
 function altoFoto(filas: number): string {
   return filas <= 8 ? "60mm" : "58mm";
+}
+
+function altoFotoColumna(filas: number): string {
+  if (filas <= 8) return "80mm";
+  if (filas <= 13) return "74mm";
+  return "68mm";
 }
 
 function HojaProducto({
@@ -242,7 +292,7 @@ function HojaProducto({
     ...propias,
   ];
   const d = item?.descuento ?? null;
-  const dosColumnas = visibles.length > LINEAS_PARA_DOS_COLUMNAS;
+  const dosColumnas = Boolean(foto) && visibles.length >= LINEAS_PARA_DOS_COLUMNAS;
   const precioDestacado = (
     <View style={s.precioDestacado} wrap={false}>
       <Text style={s.precioEtiqueta}>PRECIO</Text>
@@ -297,7 +347,10 @@ function HojaProducto({
           <View style={s.columnaIzquierda} wrap={false}>
             {foto ? (
               <View style={s.marcoFoto}>
-                <Image src={foto} style={s.fotoColumna} />
+                <Image
+                  src={foto}
+                  style={[s.fotoColumna, { height: altoFotoColumna(visibles.length) }]}
+                />
               </View>
             ) : null}
             {precioDestacado}
@@ -324,6 +377,7 @@ export function DocumentoCotizacion(datos: DatosPdf) {
   const cliente = borrador.cliente;
   const general = borrador.descuentoGeneral;
   const celular = celularDelVendedor(emisor.vendedorNombre, emisor.vendedorCelular);
+  const plan = calcularPlanDePago(totales.totalCentavos, borrador.financiacion);
   return (
     <Document title={borrador.tipoDocumento === "proforma" ? "Factura proforma" : "Cotización"}>
       <Page size="A4" style={s.pagina}>
@@ -338,67 +392,77 @@ export function DocumentoCotizacion(datos: DatosPdf) {
             <Text style={s.clienteNombre}>
               {`Cliente: ${aWinAnsi(cliente.tipo === "empresa" ? cliente.razonSocial : cliente.nombre)}`}
             </Text>
-            <Text>
-              {cliente.tipo === "empresa"
-                ? `RUT: ${cliente.rut}`
-                : `C.I.: ${
-                    validarCedula(cliente.cedula).valido
-                      ? formatearCedula(validarCedula(cliente.cedula).normalizado)
-                      : cliente.cedula
-                  }`}
-            </Text>
+            {documentoCliente(cliente) ? <Text>{documentoCliente(cliente)}</Text> : null}
+            {cliente.contacto.trim() ? (
+              <Text>{`Atención: ${aWinAnsi(cliente.contacto)}`}</Text>
+            ) : null}
           </View>
         ) : null}
         {totales.lineas.map((linea, indice) => (
           <HojaProducto key={linea.productoId} datos={datos} linea={linea} primera={indice === 0} />
         ))}
-        <View wrap={false}>
-          <View style={s.resumen}>
-            {totales.lineas.length > 1 ? (
-              <>
-                <Text style={s.resumenTitulo}>Resumen</Text>
-                {totales.lineas.map((linea) => (
-                  <View key={linea.productoId} style={s.resumenFila}>
-                    <Text style={s.resumenProducto}>
-                      {`${linea.cantidad > 1 ? `${linea.cantidad} × ` : ""}${linea.titulo}`}
-                    </Text>
-                    <Text style={s.resumenImporte}>{formatearUSD(linea.netoCentavos)}</Text>
-                  </View>
-                ))}
-              </>
-            ) : null}
-            {totales.descuentoGeneralCentavos > 0 ? (
-              <>
-                <Text>{`Subtotal: ${formatearUSD(totales.subtotalCentavos)}`}</Text>
-                <Text>
-                  {`Descuento general${general?.tipo === "porcentaje" ? ` (${porcentaje(general.valor)}%)` : ""}: - ${formatearUSD(totales.descuentoGeneralCentavos)}`}
-                </Text>
-              </>
-            ) : null}
-            <Text style={s.total}>{`TOTAL: ${formatearUSD(totales.totalCentavos)}`}</Text>
-            <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
-            <Text style={s.iva}>{textoIva(totales.iva)}</Text>
-          </View>
-          <View style={s.condiciones}>
+        <View style={s.cierre} wrap={false}>
+          <View style={s.cierreIzquierda}>
+            <Text style={s.cierreTitulo}>Condiciones</Text>
             <Text>{`Validez de la oferta: ${borrador.validezDias} días.`}</Text>
             <Text>{`Plazo de entrega: ${textoEntrega(borrador.entrega)}.`}</Text>
-            <Text>{TEXTO_FORMA_DE_PAGO}</Text>
-            <Image src={datos.logoPago} style={s.logoPago} />
+            {plan && borrador.financiacion ? (
+              <>
+                <Text style={s.formaDePagoTitulo}>Forma de pago</Text>
+                {textoPlanDePago(plan, borrador.financiacion.entregaPorcentaje).map((l) => (
+                  <Text key={l}>{l}</Text>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={s.formaDePagoTitulo}>Forma de pago</Text>
+                <Text>{TEXTO_FORMA_DE_PAGO}</Text>
+                <Image src={datos.logoPago} style={s.logoPago} />
+              </>
+            )}
+            {borrador.notas.length > 0 ? (
+              <View style={s.notas}>
+                {borrador.notas.map((nota) => (
+                  <Text key={nota}>{`• ${aWinAnsi(nota)}`}</Text>
+                ))}
+              </View>
+            ) : null}
           </View>
-          {borrador.notas.length > 0 ? (
-            <View style={s.notas}>
-              {borrador.notas.map((nota) => (
-                <Text key={nota}>{`• ${aWinAnsi(nota)}`}</Text>
-              ))}
+          <View style={s.cierreDerecha}>
+            <View style={s.resumen}>
+              {totales.lineas.length > 1 ? (
+                <>
+                  <Text style={s.resumenTitulo}>Resumen</Text>
+                  {totales.lineas.map((linea) => (
+                    <View key={linea.productoId} style={s.resumenFila}>
+                      <Text style={s.resumenProducto}>
+                        {`${linea.cantidad > 1 ? `${linea.cantidad} × ` : ""}${linea.titulo}`}
+                      </Text>
+                      <Text style={s.resumenImporte}>{formatearUSD(linea.netoCentavos)}</Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
+              {totales.descuentoGeneralCentavos > 0 ? (
+                <>
+                  <Text>{`Subtotal: ${formatearUSD(totales.subtotalCentavos)}`}</Text>
+                  <Text>
+                    {`Descuento general${general?.tipo === "porcentaje" ? ` (${porcentaje(general.valor)}%)` : ""}: - ${formatearUSD(totales.descuentoGeneralCentavos)}`}
+                  </Text>
+                </>
+              ) : null}
+              <Text style={s.total}>{`TOTAL: ${formatearUSD(totales.totalCentavos)}`}</Text>
+              <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
+              <Text style={s.iva}>{textoIva(totales.iva)}</Text>
             </View>
-          ) : null}
-          {emisor.vendedorNombre.trim() ? (
-            <Text style={s.atendido}>
-              {`Atendido por: ${aWinAnsi(emisor.vendedorNombre)}${
-                celular ? ` · Cel. ${aWinAnsi(celular)}` : ""
-              }`}
-            </Text>
-          ) : null}
+            {emisor.vendedorNombre.trim() ? (
+              <Text style={s.atendido}>
+                {`Atendido por: ${aWinAnsi(emisor.vendedorNombre)}${
+                  celular ? ` · Cel. ${aWinAnsi(celular)}` : ""
+                }`}
+              </Text>
+            ) : null}
+          </View>
         </View>
       </Page>
     </Document>

@@ -58,7 +58,7 @@ function extraerCliente(
     const razonSocial = rut[1].trim();
     const numero = soloDigitos(rut[2]);
     return {
-      cliente: { tipo: "empresa", razonSocial, rut: numero },
+      cliente: { tipo: "empresa", razonSocial, rut: numero, contacto: "" },
       resumen: `Cliente: ${razonSocial} (RUT ${numero})`,
       resto: texto.replace(rut[0], " ").trim(),
     };
@@ -71,7 +71,7 @@ function extraerCliente(
     const numero = soloDigitos(ci[2]);
     const mostrado = numero.length >= 7 ? formatearCedula(numero.padStart(8, "0")) : numero;
     return {
-      cliente: { tipo: "persona", nombre, cedula: numero },
+      cliente: { tipo: "persona", nombre, cedula: numero, contacto: "" },
       resumen: `Cliente: ${nombre} (C.I. ${mostrado})`,
       resto: texto.replace(ci[0], " ").trim(),
     };

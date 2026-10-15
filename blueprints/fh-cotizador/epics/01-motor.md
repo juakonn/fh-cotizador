@@ -1093,9 +1093,14 @@ import { VALIDEZ_POR_DEFECTO_DIAS } from "@/lib/config/negocio";
 
 export type TipoDocumento = "cotizacion" | "proforma";
 
+// `rut`, `cedula` y `contacto` pueden ir vacíos: hay clientes (organismos, instituciones) que no dan
+// el documento, y el PDF simplemente no escribe esa línea.
 export type Cliente =
-  | { tipo: "empresa"; razonSocial: string; rut: string }
-  | { tipo: "persona"; nombre: string; cedula: string };
+  | { tipo: "empresa"; razonSocial: string; rut: string; contacto: string }
+  | { tipo: "persona"; nombre: string; cedula: string; contacto: string };
+
+// Entrega inicial más cuotas, acordada con el cliente para esta cotización.
+export type Financiacion = { entregaPorcentaje: number; cuotas: number };
 
 export type Descuento = { tipo: "porcentaje"; valor: number } | { tipo: "monto"; centavos: number };
 
@@ -1125,6 +1130,7 @@ export type Borrador = {
   descuentoGeneral: Descuento | null;
   validezDias: number;
   entrega: Entrega | null;
+  financiacion: Financiacion | null;
   notas: string[];
 };
 
@@ -1164,6 +1170,7 @@ export function crearBorradorVacio(): Borrador {
     descuentoGeneral: null,
     validezDias: VALIDEZ_POR_DEFECTO_DIAS,
     entrega: null,
+    financiacion: null,
     notas: [],
   };
 }
@@ -1187,9 +1194,20 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
     tipo: z.literal("empresa"),
     razonSocial: z.string().max(120),
     rut: z.string().max(20),
+    contacto: z.string().trim().max(120).default(""),
   }),
-  z.object({ tipo: z.literal("persona"), nombre: z.string().max(120), cedula: z.string().max(15) }),
+  z.object({
+    tipo: z.literal("persona"),
+    nombre: z.string().max(120),
+    cedula: z.string().max(15),
+    contacto: z.string().trim().max(120).default(""),
+  }),
 ]);
+
+const esquemaFinanciacion = z.object({
+  entregaPorcentaje: z.number().min(0).max(100),
+  cuotas: z.number().int().min(1).max(60),
+});
 
 const esquemaEntrega = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("inmediata") }),
@@ -1217,6 +1235,7 @@ export const esquemaBorrador = z.object({
   descuentoGeneral: esquemaDescuento.nullable(),
   validezDias: z.number().int().min(1).max(365),
   entrega: esquemaEntrega.nullable(),
+  financiacion: esquemaFinanciacion.nullable().default(null),
   notas: z.array(z.string().trim().min(1).max(200)).max(10),
 });
 
@@ -1270,7 +1289,7 @@ export type SolicitudPdf = z.infer<typeof esquemaSolicitudPdf>;
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { normalizarCatalogo } from "@/lib/catalogo/normalizar";
-import { calcularDescuento, calcularTotales } from "@/lib/cotizacion/calculo";
+import { calcularDescuento, calcularPlanDePago, calcularTotales } from "@/lib/cotizacion/calculo";
 import { esquemaSolicitudPdf } from "@/lib/cotizacion/esquema";
 import {
   type Borrador,
@@ -1397,13 +1416,25 @@ describe("validarParaPdf", () => {
     const b = borrador({ items: [item(FARMTRAC)], entrega: { tipo: "dias", dias: 30 } });
     expect(validarParaPdf(b)).toEqual([]);
   });
-  it("un cliente empresa sin RUT es un problema", () => {
-    const b = borrador({
-      items: [item(FARMTRAC)],
-      entrega: { tipo: "inmediata" },
-      cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "" },
+  it("un cliente sin RUT se acepta, pero sin razón social no", () => {
+    const base = { items: [item(FARMTRAC)], entrega: { tipo: "inmediata" as const } };
+    const sinRut = borrador({
+      ...base,
+      cliente: {
+        tipo: "empresa",
+        razonSocial: "Asociación Uruguaya de Fútbol",
+        rut: "",
+        contacto: "",
+      },
     });
-    expect(validarParaPdf(b)).toEqual([{ campo: "cliente", mensaje: "Falta el RUT" }]);
+    expect(validarParaPdf(sinRut)).toEqual([]);
+    const sinNombre = borrador({
+      ...base,
+      cliente: { tipo: "empresa", razonSocial: "  ", rut: "", contacto: "" },
+    });
+    expect(validarParaPdf(sinNombre)).toEqual([
+      { campo: "cliente", mensaje: "Falta la razón social" },
+    ]);
   });
 });
 
@@ -1412,7 +1443,12 @@ describe("advertencias", () => {
     const b = borrador({
       items: [item(FARMTRAC)],
       entrega: { tipo: "inmediata" },
-      cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560018" },
+      cliente: {
+        tipo: "empresa",
+        razonSocial: "Agro Ejemplo S.A.",
+        rut: "211234560018",
+        contacto: "",
+      },
     });
     expect(validarParaPdf(b)).toEqual([]);
     expect(advertencias(b, catalogo)).toEqual([
@@ -1480,6 +1516,30 @@ describe("precio puesto a mano", () => {
     expect(r.totales.totalCentavos).toBe(3300000);
   });
 });
+
+describe("plan de pago", () => {
+  it("reparte entrega y cuotas sin perder centavos", () => {
+    const plan = calcularPlanDePago(440000, { entregaPorcentaje: 30, cuotas: 7 });
+    if (!plan) throw new Error("falta el plan");
+    expect(plan.entregaCentavos).toBe(132000);
+    expect(plan.cuotaCentavos).toBe(44000);
+    expect(plan.ultimaCuotaCentavos).toBe(44000);
+    expect(plan.entregaCentavos + plan.cuotaCentavos * 6 + plan.ultimaCuotaCentavos).toBe(440000);
+  });
+  it("cuando no divide justo, la última cuota absorbe la diferencia", () => {
+    const plan = calcularPlanDePago(100000, { entregaPorcentaje: 10, cuotas: 3 });
+    if (!plan) throw new Error("falta el plan");
+    expect(plan.entregaCentavos).toBe(10000);
+    expect(plan.cuotaCentavos).toBe(30000);
+    expect(plan.ultimaCuotaCentavos).toBe(30000);
+    const plan2 = calcularPlanDePago(100001, { entregaPorcentaje: 0, cuotas: 3 });
+    if (!plan2) throw new Error("falta el plan");
+    expect(plan2.cuotaCentavos * 2 + plan2.ultimaCuotaCentavos).toBe(100001);
+  });
+  it("sin financiación no hay plan", () => {
+    expect(calcularPlanDePago(440000, null)).toBeNull();
+  });
+});
 ```
 
 **Acceptance**
@@ -1487,7 +1547,7 @@ describe("precio puesto a mano", () => {
 1. **WHEN** la cotización tiene el Farmtrac FT 6050 (U$S 17.900) y las Palas frontales para DF 554 (U$S 7.300) **THE SYSTEM SHALL** calcular subtotal y total de 2520000 centavos con IVA `mixto`.
 2. **WHEN** la pala tiene 5% de descuento y hay un descuento general de U$S 500 **THE SYSTEM SHALL** calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos, y **WHEN** el ítem tiene `precioManualCentavos` **THE SYSTEM SHALL** usar ese precio en lugar del de la web.
 3. **WHEN** un producto de la cotización ya no está en el catálogo **THE SYSTEM SHALL** devolver `PRODUCTO_NO_DISPONIBLE` con su id.
-4. **WHEN** el borrador está vacío **THE SYSTEM SHALL** pedir productos y plazo de entrega, y **WHEN** es factura proforma sin cliente **THE SYSTEM SHALL** pedir los datos del cliente.
+4. **WHEN** el borrador está vacío **THE SYSTEM SHALL** pedir productos y plazo de entrega, y **WHEN** es factura proforma sin cliente **THE SYSTEM SHALL** pedir los datos del cliente; el RUT y la cédula vacíos no son un problema.
 5. **WHEN** el RUT del cliente es inválido o un producto tiene `sospechaIva` **THE SYSTEM SHALL** devolver una advertencia sin sumar problemas que bloqueen el PDF.
 6. **WHEN** la solicitud trae cantidad 0 o un porcentaje de descuento mayor a 100 **THE SYSTEM SHALL** rechazarla con `esquemaSolicitudPdf`.
 
@@ -1524,6 +1584,7 @@ export type Accion =
   | { tipo: "descuentoGeneral"; descuento: Descuento | null }
   | { tipo: "validez"; dias: number }
   | { tipo: "entrega"; entrega: Entrega | null }
+  | { tipo: "financiacion"; financiacion: Financiacion | null }
   | { tipo: "tipoDocumento"; valor: TipoDocumento }
   | { tipo: "cliente"; cliente: Cliente | null }
   | { tipo: "ocultarLinea"; productoId: number; lineaId: string; oculta: boolean }
@@ -1544,6 +1605,8 @@ export type Accion =
     (las secciones de venta arrancan ocultas; el vendedor las puede volver a mostrar)
     al final. Cantidades acotadas y redondeadas a 1–99; validez a 1–365.
   - `ocultarLinea`: agrega o saca el id sin duplicarlo. `actualizarPrecio`: cambia `precioVistoCentavos`.
+  - `financiacion`: guarda la entrega (0–100%) y las cuotas (1–60) acordadas, o `null` para la forma
+    de pago de siempre.
   - `precioManual`: guarda el precio que puso el vendedor para esa cotización (`null` vuelve al de la
     web). `agregado`: suma una línea escrita a mano al ítem (recortada, sin vacías, máximo 6);
     `quitarAgregado`: la saca por posición.
@@ -2000,7 +2063,12 @@ describe("cliente", () => {
     expect(r.acciones).toEqual([
       {
         tipo: "cliente",
-        cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019" },
+        cliente: {
+          tipo: "empresa",
+          razonSocial: "Agro Ejemplo S.A.",
+          rut: "211234560019",
+          contacto: "",
+        },
       },
     ]);
     expect(r.resumen).toEqual(["Cliente: Agro Ejemplo S.A. (RUT 211234560019)"]);
@@ -2008,7 +2076,10 @@ describe("cliente", () => {
   it("persona con cédula", () => {
     const r = ok("cliente Juan Pérez cédula 1.234.567-2");
     expect(r.acciones).toEqual([
-      { tipo: "cliente", cliente: { tipo: "persona", nombre: "Juan Pérez", cedula: "12345672" } },
+      {
+        tipo: "cliente",
+        cliente: { tipo: "persona", nombre: "Juan Pérez", cedula: "12345672", contacto: "" },
+      },
     ]);
     expect(r.resumen).toEqual(["Cliente: Juan Pérez (C.I. 1.234.567-2)"]);
   });

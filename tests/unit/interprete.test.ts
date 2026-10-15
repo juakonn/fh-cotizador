@@ -149,7 +149,12 @@ describe("cliente", () => {
     expect(r.acciones).toEqual([
       {
         tipo: "cliente",
-        cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019" },
+        cliente: {
+          tipo: "empresa",
+          razonSocial: "Agro Ejemplo S.A.",
+          rut: "211234560019",
+          contacto: "",
+        },
       },
     ]);
     expect(r.resumen).toEqual(["Cliente: Agro Ejemplo S.A. (RUT 211234560019)"]);
@@ -157,7 +162,10 @@ describe("cliente", () => {
   it("persona con cédula", () => {
     const r = ok("cliente Juan Pérez cédula 1.234.567-2");
     expect(r.acciones).toEqual([
-      { tipo: "cliente", cliente: { tipo: "persona", nombre: "Juan Pérez", cedula: "12345672" } },
+      {
+        tipo: "cliente",
+        cliente: { tipo: "persona", nombre: "Juan Pérez", cedula: "12345672", contacto: "" },
+      },
     ]);
     expect(r.resumen).toEqual(["Cliente: Juan Pérez (C.I. 1.234.567-2)"]);
   });

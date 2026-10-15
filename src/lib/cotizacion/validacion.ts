@@ -17,14 +17,12 @@ export function validarParaPdf(borrador: Borrador): Problema[] {
       mensaje: "La factura proforma necesita los datos del cliente",
     });
   }
-  if (cliente?.tipo === "empresa") {
-    if (!cliente.razonSocial.trim())
-      problemas.push({ campo: "cliente", mensaje: "Falta la razón social" });
-    if (!cliente.rut.trim()) problemas.push({ campo: "cliente", mensaje: "Falta el RUT" });
+  // El RUT y la cédula son opcionales: lo único imprescindible es el nombre del cliente.
+  if (cliente?.tipo === "empresa" && !cliente.razonSocial.trim()) {
+    problemas.push({ campo: "cliente", mensaje: "Falta la razón social" });
   }
-  if (cliente?.tipo === "persona") {
-    if (!cliente.nombre.trim()) problemas.push({ campo: "cliente", mensaje: "Falta el nombre" });
-    if (!cliente.cedula.trim()) problemas.push({ campo: "cliente", mensaje: "Falta la cédula" });
+  if (cliente?.tipo === "persona" && !cliente.nombre.trim()) {
+    problemas.push({ campo: "cliente", mensaje: "Falta el nombre" });
   }
   return problemas;
 }

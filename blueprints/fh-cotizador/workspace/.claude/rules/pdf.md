@@ -10,11 +10,13 @@ paths:
 - Página A4 con el membrete `src/lib/pdf/assets/membrete-fh-a4.jpg` como `<Image fixed>` absoluto de
   210×297 mm. Zona de escritura: `paddingTop 52mm`, `paddingBottom 32mm`, `paddingHorizontal 18mm`.
   El membrete ocupa arriba hasta 46 mm y abajo desde 270,6 mm: no escribir fuera de la zona.
-- **Una hoja por producto**: cada producto después del primero empieza con `break`. Arriba el título,
-  la foto y el recuadro de precio lado a lado; abajo la descripción visible, con las líneas
-  «Etiqueta: valor» como filas de tabla. Con más de 10 líneas visibles el producto pasa a dos columnas
-  (foto y precio a la izquierda, ficha al lado) para que el cierre entre en la misma hoja. El cierre (resumen si hay 2 o más productos, total, condiciones,
-  notas y «Atendido por») va en un único bloque `wrap={false}` después del último producto.
+- **Una hoja por producto**: cada producto después del primero empieza con `break`. Con foto y al
+  menos 3 líneas visibles va en dos columnas (foto grande enmarcada y precio destacado a la izquierda,
+  ficha técnica al lado, con las líneas «Etiqueta: valor» como filas de tabla); si no, foto y precio
+  lado a lado y la ficha abajo. El alto de la foto sale de `altoFotoColumna`: son los valores más
+  grandes que dejan entrar el cierre en la misma hoja, medidos con los tests del paso 8.
+- **El cierre** va después del último producto en un bloque `wrap={false}` de dos columnas:
+  condiciones, forma de pago y notas a la izquierda; resumen, total y «Atendido por» a la derecha.
 - Medidas, peso y equipamiento salen de la descripción de Shopify más los `agregados` del ítem (líneas
   escritas a mano para esa cotización), que van al final de la ficha.
 - El precio de la línea es `precioManualCentavos ?? precioCentavos` del producto; con precio a mano no
@@ -27,6 +29,9 @@ paths:
   calidad 80). Shopify devuelve PNG de 1–2,5 MB cuando la foto tiene transparencia aunque se pida JPG,
   y Vercel corta respuestas de más de 4,5 MB. Si una foto falla, el PDF sale igual sin esa foto.
 - Montos con `formatearUSD`, total en letras con `montoEnLetras` sobre el mismo entero.
+- Con `financiacion`, la forma de pago sale de `calcularPlanDePago` (entrega + cuotas, la última
+  absorbe el resto) y se omite el texto y el logo de Mi Maquinaria.
+- Sin RUT ni cédula no se escribe esa línea; `contacto` sale como «Atención: …» debajo del cliente.
 - Fechas con `src/lib/pdf/fecha.ts` (hora de America/Montevideo, "setiembre").
 - La ruta responde errores con `{ error: { codigo, mensaje, detalle? } }` y los códigos de
   `CodigoErrorPdf` en `generar.ts`.

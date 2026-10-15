@@ -5,6 +5,7 @@ import {
   crearBorradorVacio,
   type Descuento,
   type Entrega,
+  type Financiacion,
   type TipoDocumento,
 } from "./tipos";
 
@@ -16,6 +17,7 @@ export type Accion =
   | { tipo: "descuentoGeneral"; descuento: Descuento | null }
   | { tipo: "validez"; dias: number }
   | { tipo: "entrega"; entrega: Entrega | null }
+  | { tipo: "financiacion"; financiacion: Financiacion | null }
   | { tipo: "tipoDocumento"; valor: TipoDocumento }
   | { tipo: "cliente"; cliente: Cliente | null }
   | { tipo: "ocultarLinea"; productoId: number; lineaId: string; oculta: boolean }
@@ -94,6 +96,16 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
       return { ...b, validezDias: acotar(a.dias, 1, 365) };
     case "entrega":
       return { ...b, entrega: a.entrega };
+    case "financiacion":
+      return {
+        ...b,
+        financiacion: a.financiacion
+          ? {
+              entregaPorcentaje: acotar(a.financiacion.entregaPorcentaje, 0, 100),
+              cuotas: acotar(a.financiacion.cuotas, 1, 60),
+            }
+          : null,
+      };
     case "tipoDocumento":
       return { ...b, tipoDocumento: a.valor };
     case "cliente":

@@ -2,9 +2,14 @@ import { VALIDEZ_POR_DEFECTO_DIAS } from "@/lib/config/negocio";
 
 export type TipoDocumento = "cotizacion" | "proforma";
 
+// `rut`, `cedula` y `contacto` pueden ir vacíos: hay clientes (organismos, instituciones) que no dan
+// el documento, y el PDF simplemente no escribe esa línea.
 export type Cliente =
-  | { tipo: "empresa"; razonSocial: string; rut: string }
-  | { tipo: "persona"; nombre: string; cedula: string };
+  | { tipo: "empresa"; razonSocial: string; rut: string; contacto: string }
+  | { tipo: "persona"; nombre: string; cedula: string; contacto: string };
+
+// Entrega inicial más cuotas, acordada con el cliente para esta cotización.
+export type Financiacion = { entregaPorcentaje: number; cuotas: number };
 
 export type Descuento = { tipo: "porcentaje"; valor: number } | { tipo: "monto"; centavos: number };
 
@@ -34,6 +39,7 @@ export type Borrador = {
   descuentoGeneral: Descuento | null;
   validezDias: number;
   entrega: Entrega | null;
+  financiacion: Financiacion | null;
   notas: string[];
 };
 
@@ -73,6 +79,7 @@ export function crearBorradorVacio(): Borrador {
     descuentoGeneral: null,
     validezDias: VALIDEZ_POR_DEFECTO_DIAS,
     entrega: null,
+    financiacion: null,
     notas: [],
   };
 }

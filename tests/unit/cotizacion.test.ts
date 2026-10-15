@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { normalizarCatalogo } from "@/lib/catalogo/normalizar";
-import { calcularDescuento, calcularTotales } from "@/lib/cotizacion/calculo";
+import { calcularDescuento, calcularPlanDePago, calcularTotales } from "@/lib/cotizacion/calculo";
 import { esquemaSolicitudPdf } from "@/lib/cotizacion/esquema";
 import {
   type Borrador,
@@ -128,13 +128,25 @@ describe("validarParaPdf", () => {
     const b = borrador({ items: [item(FARMTRAC)], entrega: { tipo: "dias", dias: 30 } });
     expect(validarParaPdf(b)).toEqual([]);
   });
-  it("un cliente empresa sin RUT es un problema", () => {
-    const b = borrador({
-      items: [item(FARMTRAC)],
-      entrega: { tipo: "inmediata" },
-      cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "" },
+  it("un cliente sin RUT se acepta, pero sin razón social no", () => {
+    const base = { items: [item(FARMTRAC)], entrega: { tipo: "inmediata" as const } };
+    const sinRut = borrador({
+      ...base,
+      cliente: {
+        tipo: "empresa",
+        razonSocial: "Asociación Uruguaya de Fútbol",
+        rut: "",
+        contacto: "",
+      },
     });
-    expect(validarParaPdf(b)).toEqual([{ campo: "cliente", mensaje: "Falta el RUT" }]);
+    expect(validarParaPdf(sinRut)).toEqual([]);
+    const sinNombre = borrador({
+      ...base,
+      cliente: { tipo: "empresa", razonSocial: "  ", rut: "", contacto: "" },
+    });
+    expect(validarParaPdf(sinNombre)).toEqual([
+      { campo: "cliente", mensaje: "Falta la razón social" },
+    ]);
   });
 });
 
@@ -143,7 +155,12 @@ describe("advertencias", () => {
     const b = borrador({
       items: [item(FARMTRAC)],
       entrega: { tipo: "inmediata" },
-      cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560018" },
+      cliente: {
+        tipo: "empresa",
+        razonSocial: "Agro Ejemplo S.A.",
+        rut: "211234560018",
+        contacto: "",
+      },
     });
     expect(validarParaPdf(b)).toEqual([]);
     expect(advertencias(b, catalogo)).toEqual([
@@ -209,5 +226,29 @@ describe("precio puesto a mano", () => {
     if (!r.ok) throw new Error(r.mensaje);
     expect(r.totales.lineas[0].precioUnitarioCentavos).toBe(1650000);
     expect(r.totales.totalCentavos).toBe(3300000);
+  });
+});
+
+describe("plan de pago", () => {
+  it("reparte entrega y cuotas sin perder centavos", () => {
+    const plan = calcularPlanDePago(440000, { entregaPorcentaje: 30, cuotas: 7 });
+    if (!plan) throw new Error("falta el plan");
+    expect(plan.entregaCentavos).toBe(132000);
+    expect(plan.cuotaCentavos).toBe(44000);
+    expect(plan.ultimaCuotaCentavos).toBe(44000);
+    expect(plan.entregaCentavos + plan.cuotaCentavos * 6 + plan.ultimaCuotaCentavos).toBe(440000);
+  });
+  it("cuando no divide justo, la última cuota absorbe la diferencia", () => {
+    const plan = calcularPlanDePago(100000, { entregaPorcentaje: 10, cuotas: 3 });
+    if (!plan) throw new Error("falta el plan");
+    expect(plan.entregaCentavos).toBe(10000);
+    expect(plan.cuotaCentavos).toBe(30000);
+    expect(plan.ultimaCuotaCentavos).toBe(30000);
+    const plan2 = calcularPlanDePago(100001, { entregaPorcentaje: 0, cuotas: 3 });
+    if (!plan2) throw new Error("falta el plan");
+    expect(plan2.cuotaCentavos * 2 + plan2.ultimaCuotaCentavos).toBe(100001);
+  });
+  it("sin financiación no hay plan", () => {
+    expect(calcularPlanDePago(440000, null)).toBeNull();
   });
 });

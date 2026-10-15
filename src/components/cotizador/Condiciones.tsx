@@ -2,8 +2,10 @@
 
 import { useEffect, useId, useState } from "react";
 import { TEXTO_FORMA_DE_PAGO } from "@/lib/config/negocio";
+import { calcularPlanDePago } from "@/lib/cotizacion/calculo";
 import type { Accion } from "@/lib/cotizacion/reducer";
 import type { Borrador, Entrega } from "@/lib/cotizacion/tipos";
+import { formatearUSD } from "@/lib/dinero/formato";
 import { BOTON, CAMPO, CampoNumero, CampoTexto, SelectorDescuento, TARJETA } from "./campos";
 
 type ModoEntrega = Entrega["tipo"] | null;
@@ -26,11 +28,15 @@ function notasConClave(notas: string[]): { texto: string; clave: string }[] {
 
 export function Condiciones({
   borrador,
+  totalCentavos,
   despachar,
 }: {
   borrador: Borrador;
+  totalCentavos: number;
   despachar: (acciones: Accion[]) => void;
 }) {
+  const financiacion = borrador.financiacion;
+  const plan = calcularPlanDePago(totalCentavos, financiacion);
   const idNota = useId();
   const entrega = borrador.entrega;
   const [modo, setModo] = useState<ModoEntrega>(entrega?.tipo ?? null);
@@ -150,7 +156,85 @@ export function Condiciones({
         ) : null}
       </div>
 
-      <p className="text-texto-suave">{TEXTO_FORMA_DE_PAGO}</p>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm font-medium">Forma de pago</legend>
+        <div className="flex flex-wrap gap-2">
+          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-borde px-3">
+            <input
+              type="radio"
+              name="forma-de-pago"
+              checked={!financiacion}
+              onChange={() => despachar([{ tipo: "financiacion", financiacion: null }])}
+            />
+            Contado o Mi Maquinaria
+          </label>
+          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-borde px-3">
+            <input
+              type="radio"
+              name="forma-de-pago"
+              checked={Boolean(financiacion)}
+              onChange={() =>
+                despachar([
+                  {
+                    tipo: "financiacion",
+                    financiacion: financiacion ?? { entregaPorcentaje: 30, cuotas: 6 },
+                  },
+                ])
+              }
+            />
+            Entrega y cuotas
+          </label>
+        </div>
+        {financiacion ? (
+          <>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <CampoNumero
+                  etiqueta="Entrega (%)"
+                  valor={financiacion.entregaPorcentaje}
+                  minimo={0}
+                  maximo={100}
+                  paso={5}
+                  alConfirmar={(entregaPorcentaje) =>
+                    despachar([
+                      {
+                        tipo: "financiacion",
+                        financiacion: { ...financiacion, entregaPorcentaje },
+                      },
+                    ])
+                  }
+                />
+              </div>
+              <div className="flex-1">
+                <CampoNumero
+                  etiqueta="Cantidad de cuotas"
+                  valor={financiacion.cuotas}
+                  minimo={1}
+                  maximo={60}
+                  alConfirmar={(cuotas) =>
+                    despachar([{ tipo: "financiacion", financiacion: { ...financiacion, cuotas } }])
+                  }
+                />
+              </div>
+            </div>
+            {plan ? (
+              <p className="text-texto-suave">
+                {`Entrega ${formatearUSD(plan.entregaCentavos)} y ${
+                  plan.cuotaCentavos === plan.ultimaCuotaCentavos
+                    ? `${plan.cuotas} cuotas de ${formatearUSD(plan.cuotaCentavos)}`
+                    : `${plan.cuotas - 1} cuotas de ${formatearUSD(plan.cuotaCentavos)} y una de ${formatearUSD(plan.ultimaCuotaCentavos)}`
+                }.`}
+              </p>
+            ) : (
+              <p className="text-texto-suave">
+                Agregá productos para ver el reparto de las cuotas.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-texto-suave">{TEXTO_FORMA_DE_PAGO}</p>
+        )}
+      </fieldset>
     </section>
   );
 }

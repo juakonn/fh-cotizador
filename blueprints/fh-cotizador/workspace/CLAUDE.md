@@ -37,6 +37,13 @@ catálogo con `src/lib/catalogo/shopify.ts`) → `src/components/cotizador/Cotiz
 con `src/lib/cotizacion/reducer.ts`, borrador en localStorage con `persistencia.ts`, frases con
 `src/lib/interprete/interpretar.ts`).
 
+**Cotización que llega armada de afuera.** `src/lib/cotizacion/desdeUrl.ts` lee un borrador en
+base64url desde `?borrador=` y lo valida con el mismo esquema de zod que todo lo demás; si no cierra,
+se ignora y la app abre normal. Lo usa el monitor de licitaciones (`fh-licitaciones`): el mail de un
+llamado del Estado trae un botón que abre esta app con el organismo como cliente, el producto
+sugerido y la cantidad del pliego. El parámetro se borra de la barra al cargarlo, y lo leído se
+recuerda en un `useRef` porque en desarrollo React monta el componente dos veces.
+
 **Camino del PDF.** `BarraTotal.tsx` → `POST /api/pdf` (`src/app/api/pdf/route.ts`) →
 `src/lib/pdf/generar.ts` (valida con `esquema.ts`, relee el catálogo, recalcula con `calculo.ts`,
 compara precios, baja fotos) → `src/lib/pdf/documento.tsx` → PDF.
@@ -61,6 +68,7 @@ el vendedor cambia a mano vive solo en el borrador de esa cotización.
 | Montos, formato y letras | `src/lib/dinero/formato.ts`, `src/lib/dinero/letras.ts` |
 | RUT y cédula | `src/lib/documentos/identificacion.ts` |
 | Clave y cookie de acceso | `src/lib/acceso.ts` |
+| Cotización que llega por la dirección | `src/lib/cotizacion/desdeUrl.ts` |
 | Colores | bloque `@theme` de `src/app/globals.css` |
 | Membrete y logo del PDF | `src/lib/pdf/assets/` |
 
@@ -124,7 +132,8 @@ el vendedor cambia a mano vive solo en el borrador de esa cotización.
    (`precioManualCentavos` y `agregados` del ítem, que viajan en el borrador): nunca se guarda un precio
    en el servidor ni se edita el catálogo desde la app.
 2. Número y letras del total salen del mismo entero en centavos.
-3. Sin plazo de entrega no hay PDF, y la factura proforma exige cliente.
+3. Sin plazo de entrega no hay PDF, y la factura proforma exige cliente (el RUT y la cédula son
+   opcionales: hay organismos e instituciones que no los dan).
 4. Costo mensual cero: sin base de datos, sin IA, sin servicios con clave o pagos.
 5. Nunca commitear `.env.local` ni claves; la `ACCESS_KEY` real vive solo en Vercel.
 6. No editar a mano archivos generados (`next-env.d.ts`, `.next/`, `package-lock.json`).

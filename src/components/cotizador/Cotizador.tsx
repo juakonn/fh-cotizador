@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Producto } from "@/lib/catalogo/normalizar";
 import { leerBorradorDeUrl, limpiarUrl } from "@/lib/cotizacion/desdeUrl";
+import { calcularTotales } from "@/lib/cotizacion/calculo";
 import { guardarBorrador, leerBorrador, leerEmisor } from "@/lib/cotizacion/persistencia";
 import {
   type Accion,
@@ -80,6 +81,8 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
     [borrador.items, porId],
   );
   const avisos = useMemo(() => advertencias(borrador, catalogo), [borrador, catalogo]);
+  const calculo = useMemo(() => calcularTotales(borrador, catalogo), [borrador, catalogo]);
+  const totalCentavos = calculo.ok ? calculo.totales.totalCentavos : 0;
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pb-40">
@@ -161,7 +164,7 @@ export function Cotizador({ catalogo }: { catalogo: Producto[] }) {
 
       <Interprete borrador={borrador} catalogo={catalogo} despachar={despachar} />
 
-      <Condiciones borrador={borrador} despachar={despachar} />
+      <Condiciones borrador={borrador} totalCentavos={totalCentavos} despachar={despachar} />
 
       <BarraTotal borrador={borrador} emisor={emisor} catalogo={catalogo} despachar={despachar} />
     </main>

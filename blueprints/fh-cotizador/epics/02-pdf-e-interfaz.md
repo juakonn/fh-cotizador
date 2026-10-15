@@ -188,7 +188,15 @@ import type { Linea } from "@/lib/catalogo/descripcion";
 import type { Producto } from "@/lib/catalogo/normalizar";
 import { aWinAnsi } from "@/lib/catalogo/winansi";
 import { celularDelVendedor, TEXTO_FORMA_DE_PAGO } from "@/lib/config/negocio";
-import type { Borrador, Emisor, Entrega, LineaCalculada, Totales } from "@/lib/cotizacion/tipos";
+import { calcularPlanDePago, type PlanDePago } from "@/lib/cotizacion/calculo";
+import type {
+  Borrador,
+  Cliente,
+  Emisor,
+  Entrega,
+  LineaCalculada,
+  Totales,
+} from "@/lib/cotizacion/tipos";
 import { formatearUSD } from "@/lib/dinero/formato";
 import { montoEnLetras } from "@/lib/dinero/letras";
 import { formatearCedula, validarCedula } from "@/lib/documentos/identificacion";
@@ -308,8 +316,21 @@ const s = StyleSheet.create({
   },
   importe: { fontFamily: "Helvetica-Bold", fontSize: 11, color: MARINO },
   iva: { fontSize: 8, color: SUAVE },
+  cierre: { flexDirection: "row", gap: "6mm", marginTop: "7mm" },
+  cierreIzquierda: { flex: 1 },
+  cierreDerecha: { width: "74mm" },
+  cierreTitulo: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 9.5,
+    color: MARINO,
+    letterSpacing: 0.8,
+    marginBottom: "1.5mm",
+    paddingBottom: "1mm",
+    borderBottomWidth: 1,
+    borderBottomColor: DORADO,
+  },
   resumen: {
-    marginTop: "6mm",
+    marginTop: "0mm",
     padding: "3.5mm",
     backgroundColor: FONDO,
     borderLeftWidth: 3,
@@ -322,12 +343,33 @@ const s = StyleSheet.create({
   total: { fontFamily: "Helvetica-Bold", fontSize: 13, color: MARINO, marginTop: "2mm" },
   letras: { fontFamily: "Helvetica-Oblique", fontSize: 9 },
   condiciones: { marginTop: "4mm" },
+  formaDePagoTitulo: { fontFamily: "Helvetica-Bold", color: MARINO, marginTop: "1.5mm" },
   logoPago: { width: "33mm", height: "9mm", marginTop: "1.5mm" },
   notas: { marginTop: "3mm" },
   atendido: { marginTop: "3mm", color: SUAVE },
 });
 
 const ETIQUETA_VALOR = /^([^:]{2,40}):\s+(.+)$/;
+
+// Sin RUT ni cédula (organismos, instituciones) no se escribe la línea del documento.
+function documentoCliente(cliente: Cliente): string {
+  if (cliente.tipo === "empresa") return cliente.rut.trim() ? `RUT: ${cliente.rut.trim()}` : "";
+  const cedula = cliente.cedula.trim();
+  if (!cedula) return "";
+  const r = validarCedula(cedula);
+  return `C.I.: ${r.valido ? formatearCedula(r.normalizado) : cedula}`;
+}
+
+function textoPlanDePago(plan: PlanDePago, porcentaje: number): string[] {
+  const cuotasIguales = plan.cuotaCentavos === plan.ultimaCuotaCentavos;
+  const lineas = [
+    `Entrega: ${porcentaje}% — ${formatearUSD(plan.entregaCentavos)}.`,
+    cuotasIguales
+      ? `Saldo: ${plan.cuotas} ${plan.cuotas === 1 ? "cuota" : "cuotas"} de ${formatearUSD(plan.cuotaCentavos)}.`
+      : `Saldo: ${plan.cuotas - 1} de ${formatearUSD(plan.cuotaCentavos)} y una última de ${formatearUSD(plan.ultimaCuotaCentavos)}.`,
+  ];
+  return lineas;
+}
 
 function textoEntrega(entrega: Entrega | null): string {
   if (!entrega) return "A confirmar";
@@ -389,10 +431,18 @@ function LineaDescripcion({
 
 // Con muchas líneas de ficha, el producto se arma en dos columnas para que el cierre (total y
 // condiciones) entre en la misma hoja.
-const LINEAS_PARA_DOS_COLUMNAS = 10;
+// Con foto y al menos tres líneas el producto va en dos columnas: la foto se ve grande y el cierre
+// (total, condiciones y notas) entra en la misma hoja en vez de irse a la siguiente.
+const LINEAS_PARA_DOS_COLUMNAS = 3;
 
 function altoFoto(filas: number): string {
   return filas <= 8 ? "60mm" : "58mm";
+}
+
+function altoFotoColumna(filas: number): string {
+  if (filas <= 8) return "80mm";
+  if (filas <= 13) return "74mm";
+  return "68mm";
 }
 
 function HojaProducto({
@@ -418,7 +468,7 @@ function HojaProducto({
     ...propias,
   ];
   const d = item?.descuento ?? null;
-  const dosColumnas = visibles.length > LINEAS_PARA_DOS_COLUMNAS;
+  const dosColumnas = Boolean(foto) && visibles.length >= LINEAS_PARA_DOS_COLUMNAS;
   const precioDestacado = (
     <View style={s.precioDestacado} wrap={false}>
       <Text style={s.precioEtiqueta}>PRECIO</Text>
@@ -473,7 +523,10 @@ function HojaProducto({
           <View style={s.columnaIzquierda} wrap={false}>
             {foto ? (
               <View style={s.marcoFoto}>
-                <Image src={foto} style={s.fotoColumna} />
+                <Image
+                  src={foto}
+                  style={[s.fotoColumna, { height: altoFotoColumna(visibles.length) }]}
+                />
               </View>
             ) : null}
             {precioDestacado}
@@ -500,6 +553,7 @@ export function DocumentoCotizacion(datos: DatosPdf) {
   const cliente = borrador.cliente;
   const general = borrador.descuentoGeneral;
   const celular = celularDelVendedor(emisor.vendedorNombre, emisor.vendedorCelular);
+  const plan = calcularPlanDePago(totales.totalCentavos, borrador.financiacion);
   return (
     <Document title={borrador.tipoDocumento === "proforma" ? "Factura proforma" : "Cotización"}>
       <Page size="A4" style={s.pagina}>
@@ -514,67 +568,77 @@ export function DocumentoCotizacion(datos: DatosPdf) {
             <Text style={s.clienteNombre}>
               {`Cliente: ${aWinAnsi(cliente.tipo === "empresa" ? cliente.razonSocial : cliente.nombre)}`}
             </Text>
-            <Text>
-              {cliente.tipo === "empresa"
-                ? `RUT: ${cliente.rut}`
-                : `C.I.: ${
-                    validarCedula(cliente.cedula).valido
-                      ? formatearCedula(validarCedula(cliente.cedula).normalizado)
-                      : cliente.cedula
-                  }`}
-            </Text>
+            {documentoCliente(cliente) ? <Text>{documentoCliente(cliente)}</Text> : null}
+            {cliente.contacto.trim() ? (
+              <Text>{`Atención: ${aWinAnsi(cliente.contacto)}`}</Text>
+            ) : null}
           </View>
         ) : null}
         {totales.lineas.map((linea, indice) => (
           <HojaProducto key={linea.productoId} datos={datos} linea={linea} primera={indice === 0} />
         ))}
-        <View wrap={false}>
-          <View style={s.resumen}>
-            {totales.lineas.length > 1 ? (
-              <>
-                <Text style={s.resumenTitulo}>Resumen</Text>
-                {totales.lineas.map((linea) => (
-                  <View key={linea.productoId} style={s.resumenFila}>
-                    <Text style={s.resumenProducto}>
-                      {`${linea.cantidad > 1 ? `${linea.cantidad} × ` : ""}${linea.titulo}`}
-                    </Text>
-                    <Text style={s.resumenImporte}>{formatearUSD(linea.netoCentavos)}</Text>
-                  </View>
-                ))}
-              </>
-            ) : null}
-            {totales.descuentoGeneralCentavos > 0 ? (
-              <>
-                <Text>{`Subtotal: ${formatearUSD(totales.subtotalCentavos)}`}</Text>
-                <Text>
-                  {`Descuento general${general?.tipo === "porcentaje" ? ` (${porcentaje(general.valor)}%)` : ""}: - ${formatearUSD(totales.descuentoGeneralCentavos)}`}
-                </Text>
-              </>
-            ) : null}
-            <Text style={s.total}>{`TOTAL: ${formatearUSD(totales.totalCentavos)}`}</Text>
-            <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
-            <Text style={s.iva}>{textoIva(totales.iva)}</Text>
-          </View>
-          <View style={s.condiciones}>
+        <View style={s.cierre} wrap={false}>
+          <View style={s.cierreIzquierda}>
+            <Text style={s.cierreTitulo}>Condiciones</Text>
             <Text>{`Validez de la oferta: ${borrador.validezDias} días.`}</Text>
             <Text>{`Plazo de entrega: ${textoEntrega(borrador.entrega)}.`}</Text>
-            <Text>{TEXTO_FORMA_DE_PAGO}</Text>
-            <Image src={datos.logoPago} style={s.logoPago} />
+            {plan && borrador.financiacion ? (
+              <>
+                <Text style={s.formaDePagoTitulo}>Forma de pago</Text>
+                {textoPlanDePago(plan, borrador.financiacion.entregaPorcentaje).map((l) => (
+                  <Text key={l}>{l}</Text>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={s.formaDePagoTitulo}>Forma de pago</Text>
+                <Text>{TEXTO_FORMA_DE_PAGO}</Text>
+                <Image src={datos.logoPago} style={s.logoPago} />
+              </>
+            )}
+            {borrador.notas.length > 0 ? (
+              <View style={s.notas}>
+                {borrador.notas.map((nota) => (
+                  <Text key={nota}>{`• ${aWinAnsi(nota)}`}</Text>
+                ))}
+              </View>
+            ) : null}
           </View>
-          {borrador.notas.length > 0 ? (
-            <View style={s.notas}>
-              {borrador.notas.map((nota) => (
-                <Text key={nota}>{`• ${aWinAnsi(nota)}`}</Text>
-              ))}
+          <View style={s.cierreDerecha}>
+            <View style={s.resumen}>
+              {totales.lineas.length > 1 ? (
+                <>
+                  <Text style={s.resumenTitulo}>Resumen</Text>
+                  {totales.lineas.map((linea) => (
+                    <View key={linea.productoId} style={s.resumenFila}>
+                      <Text style={s.resumenProducto}>
+                        {`${linea.cantidad > 1 ? `${linea.cantidad} × ` : ""}${linea.titulo}`}
+                      </Text>
+                      <Text style={s.resumenImporte}>{formatearUSD(linea.netoCentavos)}</Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
+              {totales.descuentoGeneralCentavos > 0 ? (
+                <>
+                  <Text>{`Subtotal: ${formatearUSD(totales.subtotalCentavos)}`}</Text>
+                  <Text>
+                    {`Descuento general${general?.tipo === "porcentaje" ? ` (${porcentaje(general.valor)}%)` : ""}: - ${formatearUSD(totales.descuentoGeneralCentavos)}`}
+                  </Text>
+                </>
+              ) : null}
+              <Text style={s.total}>{`TOTAL: ${formatearUSD(totales.totalCentavos)}`}</Text>
+              <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
+              <Text style={s.iva}>{textoIva(totales.iva)}</Text>
             </View>
-          ) : null}
-          {emisor.vendedorNombre.trim() ? (
-            <Text style={s.atendido}>
-              {`Atendido por: ${aWinAnsi(emisor.vendedorNombre)}${
-                celular ? ` · Cel. ${aWinAnsi(celular)}` : ""
-              }`}
-            </Text>
-          ) : null}
+            {emisor.vendedorNombre.trim() ? (
+              <Text style={s.atendido}>
+                {`Atendido por: ${aWinAnsi(emisor.vendedorNombre)}${
+                  celular ? ` · Cel. ${aWinAnsi(celular)}` : ""
+                }`}
+              </Text>
+            ) : null}
+          </View>
         </View>
       </Page>
     </Document>
@@ -634,7 +698,12 @@ function proforma(): Borrador {
   return {
     ...crearBorradorVacio(),
     tipoDocumento: "proforma",
-    cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019" },
+    cliente: {
+      tipo: "empresa",
+      razonSocial: "Agro Ejemplo S.A.",
+      rut: "211234560019",
+      contacto: "",
+    },
     items: [
       {
         productoId: FARMTRAC,
@@ -697,7 +766,7 @@ describe("nombre del archivo", () => {
     expect(
       nombreArchivo(
         "proforma",
-        { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019" },
+        { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019", contacto: "" },
         "Farmtrac FT 6050 - 50HP - 4x4",
         MEDIODIA_11_SET,
       ),
@@ -809,7 +878,7 @@ describe("PDF de la factura proforma", () => {
     const doc = await getDocumentProxy(new Uint8Array(await renderizarPdf(datos(borrador))));
     const { text } = await extractText(doc, { mergePages: false });
     expect(text.length).toBe(1);
-    const hoja = text[0].replace(/s+/g, " ");
+    const hoja = text[0].replace(/\s+/g, " ");
     expect(hoja).toContain("Barra antivuelco plegable");
     expect(hoja).toContain("TOTAL: U$S 17.900");
     expect(hoja).toContain("Forma de pago: contado o financiado con Mi Maquinaria by Santander.");
@@ -831,6 +900,28 @@ describe("PDF de la factura proforma", () => {
     expect(texto).toContain("Cubiertas nuevas");
     expect(texto).toContain("Importe: U$S 16.500");
     expect(texto).not.toContain("Importe: U$S 17.900");
+  });
+  it("un cliente sin RUT sale sin esa línea, con la persona de contacto y el plan de pago", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      tipoDocumento: "cotizacion",
+      cliente: {
+        tipo: "empresa",
+        razonSocial: "Asociación Uruguaya de Fútbol",
+        rut: "",
+        contacto: "Sr. Jorge Giordano",
+      },
+      financiacion: { entregaPorcentaje: 30, cuotas: 7 },
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("Cliente: Asociación Uruguaya de Fútbol");
+    expect(texto).toContain("Atención: Sr. Jorge Giordano");
+    expect(texto).not.toContain("RUT:");
+    expect(texto).toContain("Entrega: 30% — U$S 7.450,50.");
+    expect(texto).toContain("Saldo: 7 cuotas de U$S 2.483,50.");
+    expect(texto).not.toContain(
+      "Forma de pago: contado o financiado con Mi Maquinaria by Santander.",
+    );
   });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
@@ -911,7 +1002,7 @@ Copiado textual del array `acceptance` de esta tarea en `tasks.json`.
 1. **WHEN** se genera la proforma de prueba (Farmtrac FT 6050 más Palas frontales para DF 554 con 5%) **THE SYSTEM SHALL** producir un PDF de menos de 2,5 MB cuyo texto contiene «FACTURA PROFORMA», «TOTAL: U$S 24.835» y «(Dólares americanos veinticuatro mil ochocientos treinta y cinco)».
 2. **WHEN** la proforma de prueba tiene 2 productos **THE SYSTEM SHALL** producir 2 hojas: la primera con el Farmtrac FT 6050, su precio y su ficha técnica hasta «Barra antivuelco plegable», sin las Palas frontales para DF 554 ni «TOTAL:»; la segunda con las Palas frontales para DF 554, «TOTAL: U$S 24.835» y la forma de pago, y **WHEN** la cotización tiene un solo producto con toda su ficha técnica **THE SYSTEM SHALL** producir una sola hoja con la ficha, el «TOTAL:» y la forma de pago.
 3. **WHEN** un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) **THE SYSTEM SHALL** dejar ese texto fuera del PDF («Por qué elegirlo» no aparece), mostrar la ficha técnica («Tanque de combustible 60 litros») y escribir al final los detalles agregados a mano.
-4. **WHEN** el documento es una cotización sin cliente **THE SYSTEM SHALL** titularlo «COTIZACIÓN» y no escribir «Cliente:», y **WHEN** el vendedor es Joaquín con otro celular guardado **THE SYSTEM SHALL** escribir «Atendido por: Joaquín · Cel. 092 469 449».
+4. **WHEN** el documento es una cotización sin cliente **THE SYSTEM SHALL** titularlo «COTIZACIÓN» y no escribir «Cliente:»; **WHEN** el cliente no tiene RUT **THE SYSTEM SHALL** omitir esa línea y escribir «Atención: …» si hay contacto; y **WHEN** hay `financiacion` **THE SYSTEM SHALL** escribir la entrega y las cuotas calculadas en lugar del texto de Mi Maquinaria.
 5. **WHEN** la fecha es 2026-09-11T02:30:00Z **THE SYSTEM SHALL** escribir «10 de setiembre de 2026» (hora de Montevideo), y **WHEN** se arma el nombre del archivo de la proforma de prueba **THE SYSTEM SHALL** devolver «Proforma - Agro Ejemplo S.A. - Farmtrac FT 6050 - 50HP - 4x4 - 2026-09-11.pdf».
 6. **WHEN** una foto llega como PNG pesado con transparencia **THE SYSTEM SHALL** convertirla en un JPG de menos de 400 KB, y un PDF con 3 fotos así **THE SYSTEM SHALL** dejarlo por debajo de 4 MB (Vercel corta respuestas de más de 4,5 MB).
 
@@ -1164,7 +1255,7 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | Cotizador | deshacer | button | `Deshacer` (deshabilitado si no hay pasos) |
 | Cotizador | empezar de cero | button | `Nueva cotización` (pide confirmación con `window.confirm("¿Empezar una cotización nueva? Se borra la actual.")`) |
 | DatosCliente | tipo de cliente | radios | `Sin cliente`, `Empresa`, `Persona` |
-| DatosCliente | campos | textbox | `Razón social`, `RUT` (empresa) · `Nombre`, `Cédula` (persona) |
+| DatosCliente | campos | textbox | `Razón social`, `RUT (opcional)` (empresa) · `Nombre`, `Cédula (opcional)` (persona) · `Atención (opcional)` |
 | BuscadorProductos | búsqueda | searchbox (`input type="search"`) | `Buscar producto` |
 | BuscadorProductos | cada resultado | button | `<título> · <U$S precio>` (más «Revisar IVA» si `sospechaIva`) |
 | ItemCotizacion | cantidad | buttons | `Menos uno <título>`, `Más uno <título>` |
@@ -1179,6 +1270,7 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | Condiciones (E2-T4) | validez | spinbutton | `Validez (días)` |
 | Condiciones (E2-T4) | entrega | radios · spinbutton · textbox | `Entrega inmediata`, `En días`, `Otro` · `Días de entrega` · `Texto de entrega` |
 | Condiciones (E2-T4) | descuento general | combobox + spinbutton | `Descuento general` · `Valor del descuento general` |
+| Condiciones (E2-T4) | forma de pago | radios · spinbutton | `Contado o Mi Maquinaria`, `Entrega y cuotas` · `Entrega (%)`, `Cantidad de cuotas` |
 | Condiciones (E2-T4) | notas | textbox + button · button | `Nota para el PDF` + `Agregar nota` · `Quitar nota <n>` |
 | Interprete (E2-T4) | pedido | textbox + button | `Pedile algo` + `Aplicar` |
 | Interprete (E2-T4) | resultado | **única** región `role="status"` | muestra el resumen o el mensaje |

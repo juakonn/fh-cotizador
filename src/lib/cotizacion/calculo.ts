@@ -1,5 +1,5 @@
 import type { Producto } from "@/lib/catalogo/normalizar";
-import type { Borrador, Descuento, LineaCalculada, Totales } from "./tipos";
+import type { Borrador, Descuento, Financiacion, LineaCalculada, Totales } from "./tipos";
 
 export function calcularDescuento(baseCentavos: number, descuento: Descuento | null): number {
   if (!descuento) return 0;
@@ -60,5 +60,33 @@ export function calcularTotales(borrador: Borrador, catalogo: Producto[]): Resul
       totalCentavos: subtotalCentavos - descuentoGeneralCentavos,
       iva,
     },
+  };
+}
+
+export type PlanDePago = {
+  entregaCentavos: number;
+  cuotas: number;
+  cuotaCentavos: number;
+  // La última absorbe el resto de la división: la suma siempre da el total exacto.
+  ultimaCuotaCentavos: number;
+};
+
+export function calcularPlanDePago(
+  totalCentavos: number,
+  financiacion: Financiacion | null,
+): PlanDePago | null {
+  if (!financiacion || totalCentavos <= 0) return null;
+  const entregaCentavos = Math.min(
+    totalCentavos,
+    Math.round((totalCentavos * financiacion.entregaPorcentaje) / 100),
+  );
+  const resto = totalCentavos - entregaCentavos;
+  const cuotas = financiacion.cuotas;
+  const cuotaCentavos = Math.floor(resto / cuotas);
+  return {
+    entregaCentavos,
+    cuotas,
+    cuotaCentavos,
+    ultimaCuotaCentavos: resto - cuotaCentavos * (cuotas - 1),
   };
 }

@@ -132,7 +132,8 @@ el vendedor cambia a mano vive solo en el borrador de esa cotización.
    (`precioManualCentavos` y `agregados` del ítem, que viajan en el borrador): nunca se guarda un precio
    en el servidor ni se edita el catálogo desde la app.
 2. Número y letras del total salen del mismo entero en centavos.
-3. Sin plazo de entrega no hay PDF, y la factura proforma exige cliente.
+3. Sin plazo de entrega no hay PDF, y la factura proforma exige cliente (el RUT y la cédula son
+   opcionales: hay organismos e instituciones que no los dan).
 4. Costo mensual cero: sin base de datos, sin IA, sin servicios con clave o pagos.
 5. Nunca commitear `.env.local` ni claves; la `ACCESS_KEY` real vive solo en Vercel.
 6. No editar a mano archivos generados (`next-env.d.ts`, `.next/`, `package-lock.json`).

@@ -10,9 +10,20 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
     tipo: z.literal("empresa"),
     razonSocial: z.string().max(120),
     rut: z.string().max(20),
+    contacto: z.string().trim().max(120).default(""),
   }),
-  z.object({ tipo: z.literal("persona"), nombre: z.string().max(120), cedula: z.string().max(15) }),
+  z.object({
+    tipo: z.literal("persona"),
+    nombre: z.string().max(120),
+    cedula: z.string().max(15),
+    contacto: z.string().trim().max(120).default(""),
+  }),
 ]);
+
+const esquemaFinanciacion = z.object({
+  entregaPorcentaje: z.number().min(0).max(100),
+  cuotas: z.number().int().min(1).max(60),
+});
 
 const esquemaEntrega = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("inmediata") }),
@@ -40,6 +51,7 @@ export const esquemaBorrador = z.object({
   descuentoGeneral: esquemaDescuento.nullable(),
   validezDias: z.number().int().min(1).max(365),
   entrega: esquemaEntrega.nullable(),
+  financiacion: esquemaFinanciacion.nullable().default(null),
   notas: z.array(z.string().trim().min(1).max(200)).max(10),
 });
 

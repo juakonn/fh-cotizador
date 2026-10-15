@@ -32,6 +32,13 @@ nuevo y que cada uno lo vuelva a abrir.
 6. **Volver a una versión anterior:** Vercel → Deployments → elegir la versión que andaba bien →
    «Promote to Production». Tarda menos de un minuto.
 
+## Formas de pago
+
+Por defecto el PDF dice «contado o financiado con Mi Maquinaria by Santander». Si para ese cliente se
+arregla otra cosa, en «Condiciones» se elige **Entrega y cuotas**: se pone el porcentaje de entrega y
+la cantidad de cuotas, y la app calcula los montos (por ejemplo, 30% de entrega sobre U$S 4.400 son
+U$S 1.320 y quedan 7 cuotas de U$S 440). Eso es lo que sale impreso.
+
 ## Precios, fotos y descripciones
 
 Salen de la web (Shopify): la app no guarda ni cambia precios. Si un precio, una foto o una ficha técnica
@@ -41,6 +48,11 @@ producto en la web. Si falta algo, se agrega ahí.
 
 Si el precio de la web cambia mientras se arma una cotización, al generar el PDF la app avisa y ofrece
 «Usar precios nuevos».
+
+## Clientes sin RUT
+
+El RUT y la cédula son opcionales: una institución que no los da se carga igual, solo con el nombre.
+En «Atención» se puede poner la persona que recibe la cotización.
 
 ## IVA
 

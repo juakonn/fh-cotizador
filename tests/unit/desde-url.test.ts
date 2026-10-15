@@ -5,7 +5,7 @@ import type { Borrador } from "@/lib/cotizacion/tipos";
 const BORRADOR: Borrador = {
   version: 1,
   tipoDocumento: "cotizacion",
-  cliente: { tipo: "empresa", razonSocial: "Intendencia de Cerro Largo", rut: "" },
+  cliente: { tipo: "empresa", razonSocial: "Intendencia de Cerro Largo", rut: "", contacto: "" },
   items: [
     {
       productoId: 10234324451616,
@@ -21,6 +21,7 @@ const BORRADOR: Borrador = {
   descuentoGeneral: null,
   validezDias: 30,
   entrega: null,
+  financiacion: null,
   notas: ["Licitación Abreviada 42/2026 — Intendencia de Cerro Largo"],
 };
 
@@ -74,7 +75,12 @@ describe("cotización que llega armada en la dirección", () => {
   it("acepta tildes y eñes en el nombre del organismo", () => {
     const conEnie = {
       ...BORRADOR,
-      cliente: { tipo: "empresa" as const, razonSocial: "Intendencia de Paysandú", rut: "" },
+      cliente: {
+        tipo: "empresa" as const,
+        razonSocial: "Intendencia de Paysandú",
+        rut: "",
+        contacto: "",
+      },
     };
     expect(leerBorradorDeUrl(conBorrador(conEnie))?.cliente).toEqual(conEnie.cliente);
   });

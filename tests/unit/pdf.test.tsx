@@ -37,7 +37,12 @@ function proforma(): Borrador {
   return {
     ...crearBorradorVacio(),
     tipoDocumento: "proforma",
-    cliente: { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019" },
+    cliente: {
+      tipo: "empresa",
+      razonSocial: "Agro Ejemplo S.A.",
+      rut: "211234560019",
+      contacto: "",
+    },
     items: [
       {
         productoId: FARMTRAC,
@@ -100,7 +105,7 @@ describe("nombre del archivo", () => {
     expect(
       nombreArchivo(
         "proforma",
-        { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019" },
+        { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019", contacto: "" },
         "Farmtrac FT 6050 - 50HP - 4x4",
         MEDIODIA_11_SET,
       ),
@@ -212,7 +217,7 @@ describe("PDF de la factura proforma", () => {
     const doc = await getDocumentProxy(new Uint8Array(await renderizarPdf(datos(borrador))));
     const { text } = await extractText(doc, { mergePages: false });
     expect(text.length).toBe(1);
-    const hoja = text[0].replace(/s+/g, " ");
+    const hoja = text[0].replace(/\s+/g, " ");
     expect(hoja).toContain("Barra antivuelco plegable");
     expect(hoja).toContain("TOTAL: U$S 17.900");
     expect(hoja).toContain("Forma de pago: contado o financiado con Mi Maquinaria by Santander.");
@@ -234,6 +239,28 @@ describe("PDF de la factura proforma", () => {
     expect(texto).toContain("Cubiertas nuevas");
     expect(texto).toContain("Importe: U$S 16.500");
     expect(texto).not.toContain("Importe: U$S 17.900");
+  });
+  it("un cliente sin RUT sale sin esa línea, con la persona de contacto y el plan de pago", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      tipoDocumento: "cotizacion",
+      cliente: {
+        tipo: "empresa",
+        razonSocial: "Asociación Uruguaya de Fútbol",
+        rut: "",
+        contacto: "Sr. Jorge Giordano",
+      },
+      financiacion: { entregaPorcentaje: 30, cuotas: 7 },
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("Cliente: Asociación Uruguaya de Fútbol");
+    expect(texto).toContain("Atención: Sr. Jorge Giordano");
+    expect(texto).not.toContain("RUT:");
+    expect(texto).toContain("Entrega: 30% — U$S 7.450,50.");
+    expect(texto).toContain("Saldo: 7 cuotas de U$S 2.483,50.");
+    expect(texto).not.toContain(
+      "Forma de pago: contado o financiado con Mi Maquinaria by Santander.",
+    );
   });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
