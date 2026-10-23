@@ -155,9 +155,16 @@ export function BarraTotal({
       {estado.tipo === "error" ? <p className="text-error">{estado.mensaje}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-lg font-semibold text-marino">
-          {calculo.ok ? `Total ${formatearUSD(calculo.totales.totalCentavos)}` : calculo.mensaje}
-        </p>
+        <div>
+          <p className="text-lg font-semibold text-marino">
+            {calculo.ok ? `Total ${formatearUSD(calculo.totales.totalCentavos)}` : calculo.mensaje}
+          </p>
+          {calculo.ok && calculo.totales.tomaCentavos > 0 ? (
+            <p className="text-sm text-texto-suave">
+              {`Toma ${formatearUSD(calculo.totales.tomaCentavos)} · Saldo a pagar ${formatearUSD(calculo.totales.saldoCentavos)}`}
+            </p>
+          ) : null}
+        </div>
         <div className="flex flex-wrap gap-2">
           {estado.tipo === "listo" ? (
             <>

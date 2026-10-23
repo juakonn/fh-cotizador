@@ -12,8 +12,8 @@ paths:
 - Todo el estado de la cotización pasa por `conHistorial`/`deshacer` de `src/lib/cotizacion/reducer.ts`.
   Un pedido del intérprete es un solo paso de Deshacer.
 - El borrador se guarda en localStorage (`guardarBorrador`) en cada cambio y se recupera al abrir. Los
-  campos nuevos del ítem (`agregados`, `precioManualCentavos`) tienen `default` en el esquema para que
-  un borrador viejo siga abriendo.
+  campos agregados después de la v1 (`agregados`, `precioManualCentavos`, `financiacion`, `tomas`,
+  `contacto`) tienen `default` en el esquema para que un borrador viejo siga abriendo.
 - Los nombres accesibles de la tabla "Contrato de la interfaz" del blueprint son un contrato con
   `tests/e2e/cotizacion.spec.ts`: no se cambian sin cambiar el test en el mismo commit.
 - Los componentes nunca importan `src/lib/pdf/**`, `src/lib/catalogo/shopify.ts` ni

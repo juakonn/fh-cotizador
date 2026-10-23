@@ -252,3 +252,27 @@ describe("plan de pago", () => {
     expect(calcularPlanDePago(440000, null)).toBeNull();
   });
 });
+
+describe("toma de máquinas", () => {
+  it("resta las tomas del total y deja el saldo a pagar", () => {
+    const b = borrador({
+      items: [item(FARMTRAC)],
+      entrega: { tipo: "inmediata" },
+      tomas: [
+        { detalle: "Tractor Ford 5000", centavos: 500000 },
+        { detalle: "Rastra vieja", centavos: 90000 },
+      ],
+    });
+    const r = calcularTotales(b, catalogo);
+    if (!r.ok) throw new Error(r.mensaje);
+    expect(r.totales.totalCentavos).toBe(1790000);
+    expect(r.totales.tomaCentavos).toBe(590000);
+    expect(r.totales.saldoCentavos).toBe(1200000);
+  });
+  it("sin tomas el saldo es igual al total", () => {
+    const r = calcularTotales(borrador({ items: [item(FARMTRAC)] }), catalogo);
+    if (!r.ok) throw new Error(r.mensaje);
+    expect(r.totales.tomaCentavos).toBe(0);
+    expect(r.totales.saldoCentavos).toBe(r.totales.totalCentavos);
+  });
+});

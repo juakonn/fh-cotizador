@@ -11,6 +11,9 @@ export type Cliente =
 // Entrega inicial más cuotas, acordada con el cliente para esta cotización.
 export type Financiacion = { entregaPorcentaje: number; cuotas: number };
 
+// Máquina usada que el cliente entrega en parte de pago.
+export type Toma = { detalle: string; centavos: number };
+
 export type Descuento = { tipo: "porcentaje"; valor: number } | { tipo: "monto"; centavos: number };
 
 export type Entrega =
@@ -40,6 +43,7 @@ export type Borrador = {
   validezDias: number;
   entrega: Entrega | null;
   financiacion: Financiacion | null;
+  tomas: Toma[];
   notas: string[];
 };
 
@@ -65,6 +69,10 @@ export type Totales = {
   subtotalCentavos: number;
   descuentoGeneralCentavos: number;
   totalCentavos: number;
+  // Máquinas que entrega el cliente en parte de pago.
+  tomaCentavos: number;
+  // Lo que queda por pagar: total menos la toma (negativo = queda a favor del cliente).
+  saldoCentavos: number;
   iva: "exento" | "incluido" | "mixto";
 };
 
@@ -80,6 +88,7 @@ export function crearBorradorVacio(): Borrador {
     validezDias: VALIDEZ_POR_DEFECTO_DIAS,
     entrega: null,
     financiacion: null,
+    tomas: [],
     notas: [],
   };
 }

@@ -20,6 +20,11 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
   }),
 ]);
 
+const esquemaToma = z.object({
+  detalle: z.string().trim().min(1).max(120),
+  centavos: z.number().int().positive().max(100_000_000),
+});
+
 const esquemaFinanciacion = z.object({
   entregaPorcentaje: z.number().min(0).max(100),
   cuotas: z.number().int().min(1).max(60),
@@ -52,6 +57,7 @@ export const esquemaBorrador = z.object({
   validezDias: z.number().int().min(1).max(365),
   entrega: esquemaEntrega.nullable(),
   financiacion: esquemaFinanciacion.nullable().default(null),
+  tomas: z.array(esquemaToma).max(4).default([]),
   notas: z.array(z.string().trim().min(1).max(200)).max(10),
 });
 

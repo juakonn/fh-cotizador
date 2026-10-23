@@ -165,6 +165,8 @@ const s = StyleSheet.create({
   resumenProducto: { flex: 1, paddingRight: "3mm" },
   resumenImporte: { width: "35mm", textAlign: "right" },
   total: { fontFamily: "Helvetica-Bold", fontSize: 13, color: MARINO, marginTop: "2mm" },
+  toma: { fontSize: 9, marginTop: "1mm" },
+  saldoLinea: { height: 0.7, backgroundColor: DORADO, marginTop: "1.5mm" },
   letras: { fontFamily: "Helvetica-Oblique", fontSize: 9 },
   condiciones: { marginTop: "4mm" },
   formaDePagoTitulo: { fontFamily: "Helvetica-Bold", color: MARINO, marginTop: "1.5mm" },
@@ -377,7 +379,7 @@ export function DocumentoCotizacion(datos: DatosPdf) {
   const cliente = borrador.cliente;
   const general = borrador.descuentoGeneral;
   const celular = celularDelVendedor(emisor.vendedorNombre, emisor.vendedorCelular);
-  const plan = calcularPlanDePago(totales.totalCentavos, borrador.financiacion);
+  const plan = calcularPlanDePago(totales.saldoCentavos, borrador.financiacion);
   return (
     <Document title={borrador.tipoDocumento === "proforma" ? "Factura proforma" : "Cotización"}>
       <Page size="A4" style={s.pagina}>
@@ -452,7 +454,22 @@ export function DocumentoCotizacion(datos: DatosPdf) {
                 </>
               ) : null}
               <Text style={s.total}>{`TOTAL: ${formatearUSD(totales.totalCentavos)}`}</Text>
-              <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
+              {totales.tomaCentavos > 0 ? (
+                <>
+                  {borrador.tomas.map((toma) => (
+                    <Text key={`${toma.detalle}-${toma.centavos}`} style={s.toma}>
+                      {`Toma ${aWinAnsi(toma.detalle)}: - ${formatearUSD(toma.centavos)}`}
+                    </Text>
+                  ))}
+                  <View style={s.saldoLinea} />
+                  <Text
+                    style={s.total}
+                  >{`SALDO A PAGAR: ${formatearUSD(totales.saldoCentavos)}`}</Text>
+                  <Text style={s.letras}>{`(${montoEnLetras(totales.saldoCentavos)})`}</Text>
+                </>
+              ) : (
+                <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
+              )}
               <Text style={s.iva}>{textoIva(totales.iva)}</Text>
             </View>
             {emisor.vendedorNombre.trim() ? (

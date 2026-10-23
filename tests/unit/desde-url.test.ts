@@ -22,6 +22,7 @@ const BORRADOR: Borrador = {
   validezDias: 30,
   entrega: null,
   financiacion: null,
+  tomas: [],
   notas: ["Licitación Abreviada 42/2026 — Intendencia de Cerro Largo"],
 };
 

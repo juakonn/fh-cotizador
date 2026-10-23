@@ -1102,6 +1102,9 @@ export type Cliente =
 // Entrega inicial más cuotas, acordada con el cliente para esta cotización.
 export type Financiacion = { entregaPorcentaje: number; cuotas: number };
 
+// Máquina usada que el cliente entrega en parte de pago.
+export type Toma = { detalle: string; centavos: number };
+
 export type Descuento = { tipo: "porcentaje"; valor: number } | { tipo: "monto"; centavos: number };
 
 export type Entrega =
@@ -1131,6 +1134,7 @@ export type Borrador = {
   validezDias: number;
   entrega: Entrega | null;
   financiacion: Financiacion | null;
+  tomas: Toma[];
   notas: string[];
 };
 
@@ -1156,6 +1160,10 @@ export type Totales = {
   subtotalCentavos: number;
   descuentoGeneralCentavos: number;
   totalCentavos: number;
+  // Máquinas que entrega el cliente en parte de pago.
+  tomaCentavos: number;
+  // Lo que queda por pagar: total menos la toma (negativo = queda a favor del cliente).
+  saldoCentavos: number;
   iva: "exento" | "incluido" | "mixto";
 };
 
@@ -1171,6 +1179,7 @@ export function crearBorradorVacio(): Borrador {
     validezDias: VALIDEZ_POR_DEFECTO_DIAS,
     entrega: null,
     financiacion: null,
+    tomas: [],
     notas: [],
   };
 }
@@ -1204,6 +1213,11 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
   }),
 ]);
 
+const esquemaToma = z.object({
+  detalle: z.string().trim().min(1).max(120),
+  centavos: z.number().int().positive().max(100_000_000),
+});
+
 const esquemaFinanciacion = z.object({
   entregaPorcentaje: z.number().min(0).max(100),
   cuotas: z.number().int().min(1).max(60),
@@ -1236,6 +1250,7 @@ export const esquemaBorrador = z.object({
   validezDias: z.number().int().min(1).max(365),
   entrega: esquemaEntrega.nullable(),
   financiacion: esquemaFinanciacion.nullable().default(null),
+  tomas: z.array(esquemaToma).max(4).default([]),
   notas: z.array(z.string().trim().min(1).max(200)).max(10),
 });
 
@@ -1540,12 +1555,36 @@ describe("plan de pago", () => {
     expect(calcularPlanDePago(440000, null)).toBeNull();
   });
 });
+
+describe("toma de máquinas", () => {
+  it("resta las tomas del total y deja el saldo a pagar", () => {
+    const b = borrador({
+      items: [item(FARMTRAC)],
+      entrega: { tipo: "inmediata" },
+      tomas: [
+        { detalle: "Tractor Ford 5000", centavos: 500000 },
+        { detalle: "Rastra vieja", centavos: 90000 },
+      ],
+    });
+    const r = calcularTotales(b, catalogo);
+    if (!r.ok) throw new Error(r.mensaje);
+    expect(r.totales.totalCentavos).toBe(1790000);
+    expect(r.totales.tomaCentavos).toBe(590000);
+    expect(r.totales.saldoCentavos).toBe(1200000);
+  });
+  it("sin tomas el saldo es igual al total", () => {
+    const r = calcularTotales(borrador({ items: [item(FARMTRAC)] }), catalogo);
+    if (!r.ok) throw new Error(r.mensaje);
+    expect(r.totales.tomaCentavos).toBe(0);
+    expect(r.totales.saldoCentavos).toBe(r.totales.totalCentavos);
+  });
+});
 ```
 
 **Acceptance**
 
 1. **WHEN** la cotización tiene el Farmtrac FT 6050 (U$S 17.900) y las Palas frontales para DF 554 (U$S 7.300) **THE SYSTEM SHALL** calcular subtotal y total de 2520000 centavos con IVA `mixto`.
-2. **WHEN** la pala tiene 5% de descuento y hay un descuento general de U$S 500 **THE SYSTEM SHALL** calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos, y **WHEN** el ítem tiene `precioManualCentavos` **THE SYSTEM SHALL** usar ese precio en lugar del de la web.
+2. **WHEN** la pala tiene 5% de descuento y hay un descuento general de U$S 500 **THE SYSTEM SHALL** calcular el neto de la pala en 693500, el subtotal en 2483500 y el total en 2433500 centavos; **WHEN** el ítem tiene `precioManualCentavos` **THE SYSTEM SHALL** usar ese precio en lugar del de la web; y **WHEN** hay máquinas tomadas **THE SYSTEM SHALL** restarlas del total en `saldoCentavos`.
 3. **WHEN** un producto de la cotización ya no está en el catálogo **THE SYSTEM SHALL** devolver `PRODUCTO_NO_DISPONIBLE` con su id.
 4. **WHEN** el borrador está vacío **THE SYSTEM SHALL** pedir productos y plazo de entrega, y **WHEN** es factura proforma sin cliente **THE SYSTEM SHALL** pedir los datos del cliente; el RUT y la cédula vacíos no son un problema.
 5. **WHEN** el RUT del cliente es inválido o un producto tiene `sospechaIva` **THE SYSTEM SHALL** devolver una advertencia sin sumar problemas que bloqueen el PDF.
@@ -1585,6 +1624,8 @@ export type Accion =
   | { tipo: "validez"; dias: number }
   | { tipo: "entrega"; entrega: Entrega | null }
   | { tipo: "financiacion"; financiacion: Financiacion | null }
+  | { tipo: "toma"; detalle: string; centavos: number }
+  | { tipo: "quitarToma"; indice: number }
   | { tipo: "tipoDocumento"; valor: TipoDocumento }
   | { tipo: "cliente"; cliente: Cliente | null }
   | { tipo: "ocultarLinea"; productoId: number; lineaId: string; oculta: boolean }
@@ -1607,6 +1648,8 @@ export type Accion =
   - `ocultarLinea`: agrega o saca el id sin duplicarlo. `actualizarPrecio`: cambia `precioVistoCentavos`.
   - `financiacion`: guarda la entrega (0–100%) y las cuotas (1–60) acordadas, o `null` para la forma
     de pago de siempre.
+  - `toma`: suma una máquina recibida en parte de pago (hasta 4, sin las vacías ni las de valor 0);
+    `quitarToma`: la saca por posición.
   - `precioManual`: guarda el precio que puso el vendedor para esa cotización (`null` vuelve al de la
     web). `agregado`: suma una línea escrita a mano al ítem (recortada, sin vacías, máximo 6);
     `quitarAgregado`: la saca por posición.
@@ -1785,6 +1828,19 @@ describe("precio a mano y detalles escritos", () => {
     expect(b.items[0].agregados.length).toBe(6);
     b = aplicar(b, { tipo: "quitarAgregado", productoId: FARMTRAC.id, indice: 0 });
     expect(b.items[0].agregados[0]).toBe("extra 0");
+  });
+});
+
+describe("toma de máquinas", () => {
+  it("agrega tomas con valor, ignora las vacías o sin precio y las quita por posición", () => {
+    let b = crearBorradorVacio();
+    b = aplicar(b, { tipo: "toma", detalle: "  Tractor Ford 5000  ", centavos: 500000 });
+    b = aplicar(b, { tipo: "toma", detalle: "   ", centavos: 100000 });
+    b = aplicar(b, { tipo: "toma", detalle: "Sin valor", centavos: 0 });
+    expect(b.tomas).toEqual([{ detalle: "Tractor Ford 5000", centavos: 500000 }]);
+    b = aplicar(b, { tipo: "toma", detalle: "Rastra", centavos: 90000 });
+    b = aplicar(b, { tipo: "quitarToma", indice: 0 });
+    expect(b.tomas).toEqual([{ detalle: "Rastra", centavos: 90000 }]);
   });
 });
 ```

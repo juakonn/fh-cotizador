@@ -153,3 +153,16 @@ describe("precio a mano y detalles escritos", () => {
     expect(b.items[0].agregados[0]).toBe("extra 0");
   });
 });
+
+describe("toma de máquinas", () => {
+  it("agrega tomas con valor, ignora las vacías o sin precio y las quita por posición", () => {
+    let b = crearBorradorVacio();
+    b = aplicar(b, { tipo: "toma", detalle: "  Tractor Ford 5000  ", centavos: 500000 });
+    b = aplicar(b, { tipo: "toma", detalle: "   ", centavos: 100000 });
+    b = aplicar(b, { tipo: "toma", detalle: "Sin valor", centavos: 0 });
+    expect(b.tomas).toEqual([{ detalle: "Tractor Ford 5000", centavos: 500000 }]);
+    b = aplicar(b, { tipo: "toma", detalle: "Rastra", centavos: 90000 });
+    b = aplicar(b, { tipo: "quitarToma", indice: 0 });
+    expect(b.tomas).toEqual([{ detalle: "Rastra", centavos: 90000 }]);
+  });
+});

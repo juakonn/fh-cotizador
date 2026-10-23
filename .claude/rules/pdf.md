@@ -30,7 +30,10 @@ paths:
   y Vercel corta respuestas de más de 4,5 MB. Si una foto falla, el PDF sale igual sin esa foto.
 - Montos con `formatearUSD`, total en letras con `montoEnLetras` sobre el mismo entero.
 - Con `financiacion`, la forma de pago sale de `calcularPlanDePago` (entrega + cuotas, la última
-  absorbe el resto) y se omite el texto y el logo de Mi Maquinaria.
+  absorbe el resto) y se omite el texto y el logo de Mi Maquinaria. El plan se calcula sobre
+  `saldoCentavos`, no sobre el total.
+- Con `tomas`, bajo el TOTAL va una línea por máquina recibida y después «SALDO A PAGAR»; las letras
+  acompañan al saldo, que es lo que el cliente termina pagando.
 - Sin RUT ni cédula no se escribe esa línea; `contacto` sale como «Atención: …» debajo del cliente.
 - Fechas con `src/lib/pdf/fecha.ts` (hora de America/Montevideo, "setiembre").
 - La ruta responde errores con `{ error: { codigo, mensaje, detalle? } }` y los códigos de

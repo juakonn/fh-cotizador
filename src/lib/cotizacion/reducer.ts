@@ -18,6 +18,8 @@ export type Accion =
   | { tipo: "validez"; dias: number }
   | { tipo: "entrega"; entrega: Entrega | null }
   | { tipo: "financiacion"; financiacion: Financiacion | null }
+  | { tipo: "toma"; detalle: string; centavos: number }
+  | { tipo: "quitarToma"; indice: number }
   | { tipo: "tipoDocumento"; valor: TipoDocumento }
   | { tipo: "cliente"; cliente: Cliente | null }
   | { tipo: "ocultarLinea"; productoId: number; lineaId: string; oculta: boolean }
@@ -34,6 +36,7 @@ export type Accion =
 const MAX_HISTORIAL = 30;
 const MAX_NOTAS = 10;
 const MAX_AGREGADOS = 6;
+const MAX_TOMAS = 4;
 
 function acotar(valor: number, minimo: number, maximo: number): number {
   return Math.min(maximo, Math.max(minimo, Math.round(valor)));
@@ -167,6 +170,14 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
             : i,
         ),
       };
+    case "toma": {
+      const detalle = a.detalle.trim().slice(0, 120);
+      const centavos = Math.round(a.centavos);
+      if (!detalle || centavos <= 0 || b.tomas.length >= MAX_TOMAS) return b;
+      return { ...b, tomas: [...b.tomas, { detalle, centavos }] };
+    }
+    case "quitarToma":
+      return { ...b, tomas: b.tomas.filter((_, i) => i !== a.indice) };
     case "nota": {
       const texto = a.texto.trim();
       if (!texto || b.notas.length >= MAX_NOTAS) return b;

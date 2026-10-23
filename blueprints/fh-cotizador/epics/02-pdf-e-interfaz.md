@@ -341,6 +341,8 @@ const s = StyleSheet.create({
   resumenProducto: { flex: 1, paddingRight: "3mm" },
   resumenImporte: { width: "35mm", textAlign: "right" },
   total: { fontFamily: "Helvetica-Bold", fontSize: 13, color: MARINO, marginTop: "2mm" },
+  toma: { fontSize: 9, marginTop: "1mm" },
+  saldoLinea: { height: 0.7, backgroundColor: DORADO, marginTop: "1.5mm" },
   letras: { fontFamily: "Helvetica-Oblique", fontSize: 9 },
   condiciones: { marginTop: "4mm" },
   formaDePagoTitulo: { fontFamily: "Helvetica-Bold", color: MARINO, marginTop: "1.5mm" },
@@ -553,7 +555,7 @@ export function DocumentoCotizacion(datos: DatosPdf) {
   const cliente = borrador.cliente;
   const general = borrador.descuentoGeneral;
   const celular = celularDelVendedor(emisor.vendedorNombre, emisor.vendedorCelular);
-  const plan = calcularPlanDePago(totales.totalCentavos, borrador.financiacion);
+  const plan = calcularPlanDePago(totales.saldoCentavos, borrador.financiacion);
   return (
     <Document title={borrador.tipoDocumento === "proforma" ? "Factura proforma" : "Cotización"}>
       <Page size="A4" style={s.pagina}>
@@ -628,7 +630,22 @@ export function DocumentoCotizacion(datos: DatosPdf) {
                 </>
               ) : null}
               <Text style={s.total}>{`TOTAL: ${formatearUSD(totales.totalCentavos)}`}</Text>
-              <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
+              {totales.tomaCentavos > 0 ? (
+                <>
+                  {borrador.tomas.map((toma) => (
+                    <Text key={`${toma.detalle}-${toma.centavos}`} style={s.toma}>
+                      {`Toma ${aWinAnsi(toma.detalle)}: - ${formatearUSD(toma.centavos)}`}
+                    </Text>
+                  ))}
+                  <View style={s.saldoLinea} />
+                  <Text
+                    style={s.total}
+                  >{`SALDO A PAGAR: ${formatearUSD(totales.saldoCentavos)}`}</Text>
+                  <Text style={s.letras}>{`(${montoEnLetras(totales.saldoCentavos)})`}</Text>
+                </>
+              ) : (
+                <Text style={s.letras}>{`(${montoEnLetras(totales.totalCentavos)})`}</Text>
+              )}
               <Text style={s.iva}>{textoIva(totales.iva)}</Text>
             </View>
             {emisor.vendedorNombre.trim() ? (
@@ -923,6 +940,23 @@ describe("PDF de la factura proforma", () => {
       "Forma de pago: contado o financiado con Mi Maquinaria by Santander.",
     );
   });
+  it("con una máquina tomada muestra el saldo y las cuotas salen sobre ese saldo", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      tipoDocumento: "cotizacion",
+      cliente: null,
+      notas: [],
+      tomas: [{ detalle: "Tractor Ford 5000 año 1998", centavos: 835000 }],
+      financiacion: { entregaPorcentaje: 50, cuotas: 4 },
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("TOTAL: U$S 24.835");
+    expect(texto).toContain("Toma Tractor Ford 5000 año 1998: - U$S 8.350");
+    expect(texto).toContain("SALDO A PAGAR: U$S 16.485");
+    expect(texto).toContain("(Dólares americanos dieciséis mil cuatrocientos ochenta y cinco)");
+    expect(texto).toContain("Entrega: 50% — U$S 8.242,50.");
+    expect(texto).toContain("Saldo: 3 de U$S 2.060,62 y una última de U$S 2.060,64.");
+  });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
     const texto = await textoPlano(await renderizarPdf(datos(borrador)));
@@ -1002,7 +1036,7 @@ Copiado textual del array `acceptance` de esta tarea en `tasks.json`.
 1. **WHEN** se genera la proforma de prueba (Farmtrac FT 6050 más Palas frontales para DF 554 con 5%) **THE SYSTEM SHALL** producir un PDF de menos de 2,5 MB cuyo texto contiene «FACTURA PROFORMA», «TOTAL: U$S 24.835» y «(Dólares americanos veinticuatro mil ochocientos treinta y cinco)».
 2. **WHEN** la proforma de prueba tiene 2 productos **THE SYSTEM SHALL** producir 2 hojas: la primera con el Farmtrac FT 6050, su precio y su ficha técnica hasta «Barra antivuelco plegable», sin las Palas frontales para DF 554 ni «TOTAL:»; la segunda con las Palas frontales para DF 554, «TOTAL: U$S 24.835» y la forma de pago, y **WHEN** la cotización tiene un solo producto con toda su ficha técnica **THE SYSTEM SHALL** producir una sola hoja con la ficha, el «TOTAL:» y la forma de pago.
 3. **WHEN** un ítem tiene líneas de descripción ocultas (L1 y las secciones de venta del Farmtrac) **THE SYSTEM SHALL** dejar ese texto fuera del PDF («Por qué elegirlo» no aparece), mostrar la ficha técnica («Tanque de combustible 60 litros») y escribir al final los detalles agregados a mano.
-4. **WHEN** el documento es una cotización sin cliente **THE SYSTEM SHALL** titularlo «COTIZACIÓN» y no escribir «Cliente:»; **WHEN** el cliente no tiene RUT **THE SYSTEM SHALL** omitir esa línea y escribir «Atención: …» si hay contacto; y **WHEN** hay `financiacion` **THE SYSTEM SHALL** escribir la entrega y las cuotas calculadas en lugar del texto de Mi Maquinaria.
+4. **WHEN** el documento es una cotización sin cliente **THE SYSTEM SHALL** titularlo «COTIZACIÓN» y no escribir «Cliente:»; **WHEN** el cliente no tiene RUT **THE SYSTEM SHALL** omitir esa línea y escribir «Atención: …» si hay contacto; **WHEN** hay `financiacion` **THE SYSTEM SHALL** escribir la entrega y las cuotas calculadas sobre el saldo en lugar del texto de Mi Maquinaria; y **WHEN** hay máquinas tomadas **THE SYSTEM SHALL** escribir cada toma y el «SALDO A PAGAR» con sus letras.
 5. **WHEN** la fecha es 2026-09-11T02:30:00Z **THE SYSTEM SHALL** escribir «10 de setiembre de 2026» (hora de Montevideo), y **WHEN** se arma el nombre del archivo de la proforma de prueba **THE SYSTEM SHALL** devolver «Proforma - Agro Ejemplo S.A. - Farmtrac FT 6050 - 50HP - 4x4 - 2026-09-11.pdf».
 6. **WHEN** una foto llega como PNG pesado con transparencia **THE SYSTEM SHALL** convertirla en un JPG de menos de 400 KB, y un PDF con 3 fotos así **THE SYSTEM SHALL** dejarlo por debajo de 4 MB (Vercel corta respuestas de más de 4,5 MB).
 
@@ -1271,6 +1305,7 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | Condiciones (E2-T4) | entrega | radios · spinbutton · textbox | `Entrega inmediata`, `En días`, `Otro` · `Días de entrega` · `Texto de entrega` |
 | Condiciones (E2-T4) | descuento general | combobox + spinbutton | `Descuento general` · `Valor del descuento general` |
 | Condiciones (E2-T4) | forma de pago | radios · spinbutton | `Contado o Mi Maquinaria`, `Entrega y cuotas` · `Entrega (%)`, `Cantidad de cuotas` |
+| Condiciones (E2-T4) | toma de máquinas | textbox + spinbutton + button · button | `Qué tomamos` + `Valor de la toma en U$S` + `Tomar` · `Quitar la toma <n>` |
 | Condiciones (E2-T4) | notas | textbox + button · button | `Nota para el PDF` + `Agregar nota` · `Quitar nota <n>` |
 | Interprete (E2-T4) | pedido | textbox + button | `Pedile algo` + `Aplicar` |
 | Interprete (E2-T4) | resultado | **única** región `role="status"` | muestra el resumen o el mensaje |

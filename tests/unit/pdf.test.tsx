@@ -262,6 +262,23 @@ describe("PDF de la factura proforma", () => {
       "Forma de pago: contado o financiado con Mi Maquinaria by Santander.",
     );
   });
+  it("con una máquina tomada muestra el saldo y las cuotas salen sobre ese saldo", async () => {
+    const borrador: Borrador = {
+      ...proforma(),
+      tipoDocumento: "cotizacion",
+      cliente: null,
+      notas: [],
+      tomas: [{ detalle: "Tractor Ford 5000 año 1998", centavos: 835000 }],
+      financiacion: { entregaPorcentaje: 50, cuotas: 4 },
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("TOTAL: U$S 24.835");
+    expect(texto).toContain("Toma Tractor Ford 5000 año 1998: - U$S 8.350");
+    expect(texto).toContain("SALDO A PAGAR: U$S 16.485");
+    expect(texto).toContain("(Dólares americanos dieciséis mil cuatrocientos ochenta y cinco)");
+    expect(texto).toContain("Entrega: 50% — U$S 8.242,50.");
+    expect(texto).toContain("Saldo: 3 de U$S 2.060,62 y una última de U$S 2.060,64.");
+  });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
     const texto = await textoPlano(await renderizarPdf(datos(borrador)));

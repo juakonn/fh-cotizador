@@ -1,6 +1,8 @@
 import type { Producto } from "@/lib/catalogo/normalizar";
 import type { Borrador, Descuento, Financiacion, LineaCalculada, Totales } from "./tipos";
 
+const MAX_TOMAS = 4;
+
 export function calcularDescuento(baseCentavos: number, descuento: Descuento | null): number {
   if (!descuento) return 0;
   const bruto =
@@ -48,6 +50,10 @@ export function calcularTotales(borrador: Borrador, catalogo: Producto[]): Resul
   }
   const subtotalCentavos = lineas.reduce((suma, l) => suma + l.netoCentavos, 0);
   const descuentoGeneralCentavos = calcularDescuento(subtotalCentavos, borrador.descuentoGeneral);
+  const totalCentavos = subtotalCentavos - descuentoGeneralCentavos;
+  const tomaCentavos = borrador.tomas
+    .slice(0, MAX_TOMAS)
+    .reduce((suma, t) => suma + Math.max(0, Math.round(t.centavos)), 0);
   const conIva = lineas.filter((l) => l.ivaIncluido).length;
   const iva: Totales["iva"] =
     conIva === 0 ? "exento" : conIva === lineas.length ? "incluido" : "mixto";
@@ -57,7 +63,9 @@ export function calcularTotales(borrador: Borrador, catalogo: Producto[]): Resul
       lineas,
       subtotalCentavos,
       descuentoGeneralCentavos,
-      totalCentavos: subtotalCentavos - descuentoGeneralCentavos,
+      totalCentavos,
+      tomaCentavos,
+      saldoCentavos: totalCentavos - tomaCentavos,
       iva,
     },
   };

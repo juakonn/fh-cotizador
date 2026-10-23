@@ -39,6 +39,12 @@ arregla otra cosa, en «Condiciones» se elige **Entrega y cuotas**: se pone el 
 la cantidad de cuotas, y la app calcula los montos (por ejemplo, 30% de entrega sobre U$S 4.400 son
 U$S 1.320 y quedan 7 cuotas de U$S 440). Eso es lo que sale impreso.
 
+## Toma de máquinas
+
+Si el cliente entrega un tractor o una máquina en parte de pago, en «Condiciones» se escribe qué se
+toma y por cuánto. El PDF muestra el total, la toma y abajo el **saldo a pagar**, que es sobre lo que
+se calculan la entrega y las cuotas.
+
 ## Precios, fotos y descripciones
 
 Salen de la web (Shopify): la app no guarda ni cambia precios. Si un precio, una foto o una ficha técnica

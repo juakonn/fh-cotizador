@@ -4,7 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { TEXTO_FORMA_DE_PAGO } from "@/lib/config/negocio";
 import { calcularPlanDePago } from "@/lib/cotizacion/calculo";
 import type { Accion } from "@/lib/cotizacion/reducer";
-import type { Borrador, Entrega } from "@/lib/cotizacion/tipos";
+import type { Borrador, Entrega, Toma } from "@/lib/cotizacion/tipos";
 import { formatearUSD } from "@/lib/dinero/formato";
 import { BOTON, CAMPO, CampoNumero, CampoTexto, SelectorDescuento, TARJETA } from "./campos";
 
@@ -17,6 +17,16 @@ const MODOS: { valor: Entrega["tipo"]; etiqueta: string }[] = [
 ];
 
 // Dos notas iguales son posibles: la clave suma cuántas veces apareció ese texto antes.
+function conClave(tomas: Toma[]): { toma: Toma; clave: string }[] {
+  const vistas = new Map<string, number>();
+  return tomas.map((toma) => {
+    const id = `${toma.detalle}-${toma.centavos}`;
+    const n = (vistas.get(id) ?? 0) + 1;
+    vistas.set(id, n);
+    return { toma, clave: `${id}#${n}` };
+  });
+}
+
 function notasConClave(notas: string[]): { texto: string; clave: string }[] {
   const vistas = new Map<string, number>();
   return notas.map((texto) => {
@@ -38,10 +48,22 @@ export function Condiciones({
   const financiacion = borrador.financiacion;
   const plan = calcularPlanDePago(totalCentavos, financiacion);
   const idNota = useId();
+  const idToma = useId();
+  const idTomaValor = useId();
+  const [toma, setToma] = useState("");
+  const [tomaValor, setTomaValor] = useState("");
   const entrega = borrador.entrega;
   const [modo, setModo] = useState<ModoEntrega>(entrega?.tipo ?? null);
   const [nota, setNota] = useState("");
   useEffect(() => setModo(entrega?.tipo ?? null), [entrega]);
+
+  const agregarToma = () => {
+    const centavos = Math.round(Number(tomaValor.replace(",", ".")) * 100);
+    if (!toma.trim() || !Number.isFinite(centavos) || centavos <= 0) return;
+    despachar([{ tipo: "toma", detalle: toma, centavos }]);
+    setToma("");
+    setTomaValor("");
+  };
 
   const agregarNota = () => {
     if (!nota.trim()) return;
@@ -116,6 +138,64 @@ export function Condiciones({
         descuento={borrador.descuentoGeneral}
         alCambiar={(descuento) => despachar([{ tipo: "descuentoGeneral", descuento }])}
       />
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm font-medium">Toma de máquinas (parte de pago)</legend>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            id={idToma}
+            type="text"
+            aria-label="Qué tomamos"
+            maxLength={120}
+            placeholder="Ej.: Tractor Ford 5000 año 1998"
+            value={toma}
+            onChange={(e) => setToma(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") agregarToma();
+            }}
+            className={CAMPO}
+          />
+          <input
+            id={idTomaValor}
+            type="number"
+            inputMode="decimal"
+            aria-label="Valor de la toma en U$S"
+            min={1}
+            placeholder="U$S"
+            value={tomaValor}
+            onChange={(e) => setTomaValor(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") agregarToma();
+            }}
+            className={`${CAMPO} sm:w-32`}
+          />
+          <button type="button" className={`${BOTON} shrink-0`} onClick={agregarToma}>
+            Tomar
+          </button>
+        </div>
+        {borrador.tomas.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {conClave(borrador.tomas).map(({ toma: t, clave }, i) => (
+              <li key={clave} className="flex items-center justify-between gap-2">
+                <span>{`${t.detalle} · ${formatearUSD(t.centavos)}`}</span>
+                <button
+                  type="button"
+                  aria-label={`Quitar la toma ${i + 1}`}
+                  className={`${BOTON} shrink-0`}
+                  onClick={() => despachar([{ tipo: "quitarToma", indice: i }])}
+                >
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-texto-suave">
+            Si el cliente entrega una máquina en parte de pago, cargala acá y se descuenta del
+            total.
+          </p>
+        )}
+      </fieldset>
 
       <div className="flex flex-col gap-2">
         <label htmlFor={idNota} className="text-sm font-medium">
