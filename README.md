@@ -39,6 +39,13 @@ arregla otra cosa, en «Condiciones» se elige **Entrega y cuotas**: se pone el 
 la cantidad de cuotas, y la app calcula los montos (por ejemplo, 30% de entrega sobre U$S 4.400 son
 U$S 1.320 y quedan 7 cuotas de U$S 440). Eso es lo que sale impreso.
 
+## Mandar la cotización por mail
+
+En los datos del cliente hay un campo **Mail del cliente**. Después de generar el PDF, el botón
+**«Mail al cliente»** descarga el archivo y abre tu correo con el destinatario, el asunto y el mensaje
+ya escritos (productos, total, validez, entrega y forma de pago). Solo falta **adjuntar el PDF que se
+acaba de descargar** y enviar.
+
 ## Tractores con pala frontal
 
 El tractor va exento de IVA y la pala lo lleva incluido. Al agregar un combo, la app reparte el

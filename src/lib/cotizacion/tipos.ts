@@ -5,8 +5,8 @@ export type TipoDocumento = "cotizacion" | "proforma";
 // `rut`, `cedula` y `contacto` pueden ir vacíos: hay clientes (organismos, instituciones) que no dan
 // el documento, y el PDF simplemente no escribe esa línea.
 export type Cliente =
-  | { tipo: "empresa"; razonSocial: string; rut: string; contacto: string }
-  | { tipo: "persona"; nombre: string; cedula: string; contacto: string };
+  | { tipo: "empresa"; razonSocial: string; rut: string; contacto: string; email: string }
+  | { tipo: "persona"; nombre: string; cedula: string; contacto: string; email: string };
 
 // Entrega inicial más cuotas, acordada con el cliente para esta cotización.
 export type Financiacion = { entregaPorcentaje: number; cuotas: number };

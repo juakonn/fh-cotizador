@@ -11,12 +11,14 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
     razonSocial: z.string().max(120),
     rut: z.string().max(20),
     contacto: z.string().trim().max(120).default(""),
+    email: z.string().trim().max(120).default(""),
   }),
   z.object({
     tipo: z.literal("persona"),
     nombre: z.string().max(120),
     cedula: z.string().max(15),
     contacto: z.string().trim().max(120).default(""),
+    email: z.string().trim().max(120).default(""),
   }),
 ]);
 

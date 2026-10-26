@@ -41,9 +41,9 @@ export function DatosCliente({
                 onChange={() =>
                   cambiar(
                     o.valor === "empresa"
-                      ? { tipo: "empresa", razonSocial: "", rut: "", contacto: "" }
+                      ? { tipo: "empresa", razonSocial: "", rut: "", contacto: "", email: "" }
                       : o.valor === "persona"
-                        ? { tipo: "persona", nombre: "", cedula: "", contacto: "" }
+                        ? { tipo: "persona", nombre: "", cedula: "", contacto: "", email: "" }
                         : null,
                   )
                 }
@@ -83,11 +83,18 @@ export function DatosCliente({
           </>
         ) : null}
         {cliente ? (
-          <CampoTexto
-            etiqueta="Atención (opcional)"
-            valor={cliente.contacto}
-            alConfirmar={(contacto) => cambiar({ ...cliente, contacto })}
-          />
+          <>
+            <CampoTexto
+              etiqueta="Atención (opcional)"
+              valor={cliente.contacto}
+              alConfirmar={(contacto) => cambiar({ ...cliente, contacto })}
+            />
+            <CampoTexto
+              etiqueta="Mail del cliente (opcional)"
+              valor={cliente.email}
+              alConfirmar={(email) => cambiar({ ...cliente, email })}
+            />
+          </>
         ) : null}
         {avisos.map((a) => (
           <p key={a.mensaje} className="text-error">

@@ -69,6 +69,7 @@ el vendedor cambia a mano vive solo en el borrador de esa cotización.
 | RUT y cédula | `src/lib/documentos/identificacion.ts` |
 | Clave y cookie de acceso | `src/lib/acceso.ts` |
 | Cotización que llega por la dirección | `src/lib/cotizacion/desdeUrl.ts` |
+| Texto del mail al cliente | `src/lib/cotizacion/mail.ts` |
 | Colores | bloque `@theme` de `src/app/globals.css` |
 | Membrete y logo del PDF | `src/lib/pdf/assets/` |
 

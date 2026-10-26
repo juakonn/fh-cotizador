@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Producto } from "@/lib/catalogo/normalizar";
+import { celularDelVendedor } from "@/lib/config/negocio";
 import { calcularTotales } from "@/lib/cotizacion/calculo";
+import { armarMail } from "@/lib/cotizacion/mail";
 import type { Accion } from "@/lib/cotizacion/reducer";
 import type { Borrador, Emisor } from "@/lib/cotizacion/tipos";
 import { advertencias, validarParaPdf } from "@/lib/cotizacion/validacion";
@@ -43,6 +45,16 @@ export function BarraTotal({
   despachar: (acciones: Accion[]) => void;
 }) {
   const [estado, setEstado] = useState<Estado>({ tipo: "quieto" });
+  // Si el cálculo falla no hay PDF listo, así que este valor nunca se usa de verdad.
+  const vacios = {
+    lineas: [],
+    subtotalCentavos: 0,
+    descuentoGeneralCentavos: 0,
+    totalCentavos: 0,
+    tomaCentavos: 0,
+    saldoCentavos: 0,
+    iva: "exento" as const,
+  };
   const calculo = useMemo(() => calcularTotales(borrador, catalogo), [borrador, catalogo]);
   const problemas = useMemo(() => validarParaPdf(borrador), [borrador]);
   const avisos = useMemo(() => advertencias(borrador, catalogo), [borrador, catalogo]);
@@ -174,6 +186,22 @@ export function BarraTotal({
                 onClick={() => descargar(estado.archivo, estado.url)}
               >
                 Descargar
+              </button>
+              <button
+                type="button"
+                className={BOTON}
+                onClick={() => {
+                  descargar(estado.archivo, estado.url);
+                  const mail = armarMail(
+                    borrador,
+                    calculo.ok ? calculo.totales : vacios,
+                    emisor,
+                    celularDelVendedor(emisor.vendedorNombre, emisor.vendedorCelular),
+                  );
+                  window.location.href = mail.enlace;
+                }}
+              >
+                Mail al cliente
               </button>
               {puedeCompartir ? (
                 <button

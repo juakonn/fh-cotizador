@@ -5,7 +5,13 @@ import type { Borrador } from "@/lib/cotizacion/tipos";
 const BORRADOR: Borrador = {
   version: 1,
   tipoDocumento: "cotizacion",
-  cliente: { tipo: "empresa", razonSocial: "Intendencia de Cerro Largo", rut: "", contacto: "" },
+  cliente: {
+    tipo: "empresa",
+    razonSocial: "Intendencia de Cerro Largo",
+    rut: "",
+    contacto: "",
+    email: "",
+  },
   items: [
     {
       productoId: 10234324451616,
@@ -82,6 +88,7 @@ describe("cotización que llega armada en la dirección", () => {
         razonSocial: "Intendencia de Paysandú",
         rut: "",
         contacto: "",
+        email: "",
       },
     };
     expect(leerBorradorDeUrl(conBorrador(conEnie))?.cliente).toEqual(conEnie.cliente);

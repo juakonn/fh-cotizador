@@ -42,6 +42,7 @@ function proforma(): Borrador {
       razonSocial: "Agro Ejemplo S.A.",
       rut: "211234560019",
       contacto: "",
+      email: "",
     },
     items: [
       {
@@ -107,7 +108,13 @@ describe("nombre del archivo", () => {
     expect(
       nombreArchivo(
         "proforma",
-        { tipo: "empresa", razonSocial: "Agro Ejemplo S.A.", rut: "211234560019", contacto: "" },
+        {
+          tipo: "empresa",
+          razonSocial: "Agro Ejemplo S.A.",
+          rut: "211234560019",
+          contacto: "",
+          email: "",
+        },
         "Farmtrac FT 6050 - 50HP - 4x4",
         MEDIODIA_11_SET,
       ),
@@ -252,6 +259,7 @@ describe("PDF de la factura proforma", () => {
         razonSocial: "Asociación Uruguaya de Fútbol",
         rut: "",
         contacto: "Sr. Jorge Giordano",
+        email: "",
       },
       financiacion: { entregaPorcentaje: 30, cuotas: 7 },
     };

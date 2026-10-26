@@ -154,6 +154,7 @@ describe("cliente", () => {
           razonSocial: "Agro Ejemplo S.A.",
           rut: "211234560019",
           contacto: "",
+          email: "",
         },
       },
     ]);
@@ -164,7 +165,13 @@ describe("cliente", () => {
     expect(r.acciones).toEqual([
       {
         tipo: "cliente",
-        cliente: { tipo: "persona", nombre: "Juan Pérez", cedula: "12345672", contacto: "" },
+        cliente: {
+          tipo: "persona",
+          nombre: "Juan Pérez",
+          cedula: "12345672",
+          contacto: "",
+          email: "",
+        },
       },
     ]);
     expect(r.resumen).toEqual(["Cliente: Juan Pérez (C.I. 1.234.567-2)"]);

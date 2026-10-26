@@ -1351,7 +1351,7 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | Cotizador | deshacer | button | `Deshacer` (deshabilitado si no hay pasos) |
 | Cotizador | empezar de cero | button | `Nueva cotización` (pide confirmación con `window.confirm("¿Empezar una cotización nueva? Se borra la actual.")`) |
 | DatosCliente | tipo de cliente | radios | `Sin cliente`, `Empresa`, `Persona` |
-| DatosCliente | campos | textbox | `Razón social`, `RUT (opcional)` (empresa) · `Nombre`, `Cédula (opcional)` (persona) · `Atención (opcional)` |
+| DatosCliente | campos | textbox | `Razón social`, `RUT (opcional)` (empresa) · `Nombre`, `Cédula (opcional)` (persona) · `Atención (opcional)`, `Mail del cliente (opcional)` |
 | BuscadorProductos | búsqueda | searchbox (`input type="search"`) | `Buscar producto` |
 | BuscadorProductos | cada resultado | button | `<título> · <U$S precio>` (más «Revisar IVA» si `sospechaIva`) |
 | ItemCotizacion | cantidad | buttons | `Menos uno <título>`, `Más uno <título>` |
@@ -1377,7 +1377,7 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | AjustesDispositivo (E2-T4) | campos | radios · textbox · button | `San Jacinto`, `Montevideo` · `Tu nombre`, `Tu celular` · `Guardar` |
 | BarraTotal (E2-T5) | total | texto | `Total U$S …` |
 | BarraTotal (E2-T5) | generar | button | `Generar PDF` (deshabilitado con problemas o mientras genera: texto `Generando…`) |
-| BarraTotal (E2-T5) | resultado | buttons | `Descargar`, `Compartir` (solo si `navigator.canShare({ files })`) |
+| BarraTotal (E2-T5) | resultado | buttons | `Descargar`, `Mail al cliente`, `Compartir` (solo si `navigator.canShare({ files })`) |
 | BarraTotal (E2-T5) | precio cambiado | button | `Usar precios nuevos` |
 
 Qué hace cada archivo en esta tarea:

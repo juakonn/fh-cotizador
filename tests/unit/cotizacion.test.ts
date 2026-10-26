@@ -138,12 +138,13 @@ describe("validarParaPdf", () => {
         razonSocial: "Asociación Uruguaya de Fútbol",
         rut: "",
         contacto: "",
+        email: "",
       },
     });
     expect(validarParaPdf(sinRut)).toEqual([]);
     const sinNombre = borrador({
       ...base,
-      cliente: { tipo: "empresa", razonSocial: "  ", rut: "", contacto: "" },
+      cliente: { tipo: "empresa", razonSocial: "  ", rut: "", contacto: "", email: "" },
     });
     expect(validarParaPdf(sinNombre)).toEqual([
       { campo: "cliente", mensaje: "Falta la razón social" },
@@ -161,6 +162,7 @@ describe("advertencias", () => {
         razonSocial: "Agro Ejemplo S.A.",
         rut: "211234560018",
         contacto: "",
+        email: "",
       },
     });
     expect(validarParaPdf(b)).toEqual([]);

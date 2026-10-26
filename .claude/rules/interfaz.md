@@ -22,6 +22,8 @@ paths:
   `tests/e2e/cotizacion.spec.ts`: no se cambian sin cambiar el test en el mismo commit.
 - Los componentes nunca importan `src/lib/pdf/**`, `src/lib/catalogo/shopify.ts` ni
   `src/lib/acceso.ts`.
+- «Mail al cliente» descarga el PDF y abre el correo del vendedor con `armarMail` (enlace `mailto:`).
+  No manda nada por su cuenta: el PDF se adjunta a mano, porque un `mailto:` no lleva archivos.
 - Estados siempre visibles: catálogo que no cargó (mensaje + botón "Reintentar"), búsqueda sin
   resultados ("No hay productos con esa búsqueda"), cotización vacía ("Todavía no agregaste
   productos") y PDF generándose (botón deshabilitado con "Generando…").
