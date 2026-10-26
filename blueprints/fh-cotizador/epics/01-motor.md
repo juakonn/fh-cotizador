@@ -1102,6 +1102,14 @@ export type Cliente =
 // Entrega inicial más cuotas, acordada con el cliente para esta cotización.
 export type Financiacion = { entregaPorcentaje: number; cuotas: number };
 
+// Un combo (tractor con pala) tiene una parte exenta y otra con IVA incluido: se detalla en el PDF.
+export type DesgloseIva = {
+  etiquetaExento: string;
+  exentoCentavos: number;
+  etiquetaConIva: string;
+  conIvaCentavos: number;
+};
+
 // Máquina usada que el cliente entrega en parte de pago.
 export type Toma = { detalle: string; centavos: number };
 
@@ -1123,6 +1131,8 @@ export type Item = {
   agregados: string[];
   // Precio puesto a mano para esta cotización; null = vale el de la web.
   precioManualCentavos: number | null;
+  // Reparto del precio unitario entre la parte exenta y la que lleva IVA (combos).
+  desgloseIva: DesgloseIva | null;
 };
 
 export type Borrador = {
@@ -1153,6 +1163,7 @@ export type LineaCalculada = {
   descuentoCentavos: number;
   netoCentavos: number;
   ivaIncluido: boolean;
+  desgloseIva: DesgloseIva | null;
 };
 
 export type Totales = {
@@ -1213,6 +1224,13 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
   }),
 ]);
 
+const esquemaDesgloseIva = z.object({
+  etiquetaExento: z.string().trim().min(1).max(40),
+  exentoCentavos: z.number().int().nonnegative().max(100_000_000),
+  etiquetaConIva: z.string().trim().min(1).max(40),
+  conIvaCentavos: z.number().int().nonnegative().max(100_000_000),
+});
+
 const esquemaToma = z.object({
   detalle: z.string().trim().min(1).max(120),
   centavos: z.number().int().positive().max(100_000_000),
@@ -1239,6 +1257,7 @@ export const esquemaItem = z.object({
   // Con `default` los borradores guardados antes de esta versión siguen siendo válidos.
   agregados: z.array(z.string().trim().min(1).max(120)).max(6).default([]),
   precioManualCentavos: z.number().int().positive().max(100_000_000).nullable().default(null),
+  desgloseIva: esquemaDesgloseIva.nullable().default(null),
 });
 
 export const esquemaBorrador = z.object({
@@ -1331,6 +1350,7 @@ function item(productoId: number, extra: Partial<Item> = {}): Item {
     precioVistoCentavos: 0,
     agregados: [],
     precioManualCentavos: null,
+    desgloseIva: null,
     ...extra,
   };
 }
@@ -1522,6 +1542,7 @@ describe("precio puesto a mano", () => {
           precioVistoCentavos: 1790000,
           agregados: [],
           precioManualCentavos: 1650000,
+          desgloseIva: null,
         },
       ],
     };
@@ -1616,7 +1637,7 @@ reducer puro. El historial agrupa varias acciones como un solo paso de Deshacer.
 
 ```ts
 export type Accion =
-  | { tipo: "agregar"; producto: Producto; cantidad: number }
+  | { tipo: "agregar"; producto: Producto; cantidad: number; desgloseIva?: DesgloseIva | null }
   | { tipo: "quitar"; productoId: number }
   | { tipo: "cantidad"; productoId: number; cantidad: number }
   | { tipo: "descuentoItem"; productoId: number; descuento: Descuento | null }
@@ -1632,6 +1653,7 @@ export type Accion =
   | { tipo: "mostrarFoto"; productoId: number; mostrar: boolean }
   | { tipo: "actualizarPrecio"; productoId: number; precioCentavos: number }
   | { tipo: "precioManual"; productoId: number; centavos: number | null }
+  | { tipo: "desgloseIva"; productoId: number; desglose: DesgloseIva | null }
   | { tipo: "agregado"; productoId: number; texto: string }
   | { tipo: "quitarAgregado"; productoId: number; indice: number }
   | { tipo: "nota"; texto: string }
@@ -1648,6 +1670,8 @@ export type Accion =
   - `ocultarLinea`: agrega o saca el id sin duplicarlo. `actualizarPrecio`: cambia `precioVistoCentavos`.
   - `financiacion`: guarda la entrega (0–100%) y las cuotas (1–60) acordadas, o `null` para la forma
     de pago de siempre.
+  - `desgloseIva`: guarda o saca el reparto del precio entre la parte exenta y la que lleva IVA; lo
+    propone `src/lib/cotizacion/desgloseIva.ts` al agregar un tractor con pala.
   - `toma`: suma una máquina recibida en parte de pago (hasta 4, sin las vacías ni las de valor 0);
     `quitarToma`: la saca por posición.
   - `precioManual`: guarda el precio que puso el vendedor para esa cotización (`null` vuelve al de la

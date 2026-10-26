@@ -175,7 +175,9 @@ const s = StyleSheet.create({
   atendido: { marginTop: "3mm", color: SUAVE },
 });
 
-const ETIQUETA_VALOR = /^([^:]{2,40}):\s+(.+)$/;
+// Fila de tabla solo cuando la etiqueta es corta y no es una frase: "Peso: 550 kg" sí,
+// "55 HP, inversor de marcha y pala frontal: la combinación…" no.
+const ETIQUETA_VALOR = /^([^:,;]{2,28}):\s+(.+)$/;
 
 // Sin RUT ni cédula (organismos, instituciones) no se escribe la línea del documento.
 function documentoCliente(cliente: Cliente): string {
@@ -312,7 +314,18 @@ function HojaProducto({
           {`Descuento${d?.tipo === "porcentaje" ? ` (${porcentaje(d.valor)}%)` : ""}: - ${formatearUSD(linea.descuentoCentavos)}`}
         </Text>
       ) : null}
-      <Text style={s.precioIva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      {linea.desgloseIva ? (
+        <>
+          <Text style={s.precioLinea}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaExento)}: ${formatearUSD(linea.desgloseIva.exentoCentavos)} exento de IVA`}
+          </Text>
+          <Text style={s.precioLinea}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaConIva)}: ${formatearUSD(linea.desgloseIva.conIvaCentavos)} IVA incluido`}
+          </Text>
+        </>
+      ) : (
+        <Text style={s.precioIva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      )}
     </View>
   );
   const precios = (
@@ -325,7 +338,18 @@ function HojaProducto({
         </Text>
       ) : null}
       <Text style={s.importe}>{`Importe: ${formatearUSD(linea.netoCentavos)}`}</Text>
-      <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      {linea.desgloseIva ? (
+        <>
+          <Text style={s.iva}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaExento)}: ${formatearUSD(linea.desgloseIva.exentoCentavos)} exento de IVA`}
+          </Text>
+          <Text style={s.iva}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaConIva)}: ${formatearUSD(linea.desgloseIva.conIvaCentavos)} IVA incluido`}
+          </Text>
+        </>
+      ) : (
+        <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      )}
     </View>
   );
   let franja = 0;
@@ -417,7 +441,6 @@ export function DocumentoCotizacion(datos: DatosPdf) {
               </>
             ) : (
               <>
-                <Text style={s.formaDePagoTitulo}>Forma de pago</Text>
                 <Text>{TEXTO_FORMA_DE_PAGO}</Text>
                 <Image src={datos.logoPago} style={s.logoPago} />
               </>

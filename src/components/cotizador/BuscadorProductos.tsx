@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import type { Producto } from "@/lib/catalogo/normalizar";
+import { sugerirDesgloseIva } from "@/lib/cotizacion/desgloseIva";
 import type { Accion } from "@/lib/cotizacion/reducer";
 import { formatearUSD } from "@/lib/dinero/formato";
 import { buscarProductos } from "@/lib/interprete/buscar";
@@ -48,7 +49,14 @@ export function BuscadorProductos({
                 <button
                   type="button"
                   onClick={() => {
-                    despachar([{ tipo: "agregar", producto, cantidad: 1 }]);
+                    despachar([
+                      {
+                        tipo: "agregar",
+                        producto,
+                        cantidad: 1,
+                        desgloseIva: sugerirDesgloseIva(producto, catalogo),
+                      },
+                    ]);
                     setConsulta("");
                   }}
                   className="min-h-11 w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-fondo"

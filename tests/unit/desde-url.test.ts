@@ -16,6 +16,7 @@ const BORRADOR: Borrador = {
       precioVistoCentavos: 2290000,
       agregados: [],
       precioManualCentavos: null,
+      desgloseIva: null,
     },
   ],
   descuentoGeneral: null,

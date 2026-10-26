@@ -11,6 +11,14 @@ export type Cliente =
 // Entrega inicial más cuotas, acordada con el cliente para esta cotización.
 export type Financiacion = { entregaPorcentaje: number; cuotas: number };
 
+// Un combo (tractor con pala) tiene una parte exenta y otra con IVA incluido: se detalla en el PDF.
+export type DesgloseIva = {
+  etiquetaExento: string;
+  exentoCentavos: number;
+  etiquetaConIva: string;
+  conIvaCentavos: number;
+};
+
 // Máquina usada que el cliente entrega en parte de pago.
 export type Toma = { detalle: string; centavos: number };
 
@@ -32,6 +40,8 @@ export type Item = {
   agregados: string[];
   // Precio puesto a mano para esta cotización; null = vale el de la web.
   precioManualCentavos: number | null;
+  // Reparto del precio unitario entre la parte exenta y la que lleva IVA (combos).
+  desgloseIva: DesgloseIva | null;
 };
 
 export type Borrador = {
@@ -62,6 +72,7 @@ export type LineaCalculada = {
   descuentoCentavos: number;
   netoCentavos: number;
   ivaIncluido: boolean;
+  desgloseIva: DesgloseIva | null;
 };
 
 export type Totales = {

@@ -351,7 +351,9 @@ const s = StyleSheet.create({
   atendido: { marginTop: "3mm", color: SUAVE },
 });
 
-const ETIQUETA_VALOR = /^([^:]{2,40}):\s+(.+)$/;
+// Fila de tabla solo cuando la etiqueta es corta y no es una frase: "Peso: 550 kg" sí,
+// "55 HP, inversor de marcha y pala frontal: la combinación…" no.
+const ETIQUETA_VALOR = /^([^:,;]{2,28}):\s+(.+)$/;
 
 // Sin RUT ni cédula (organismos, instituciones) no se escribe la línea del documento.
 function documentoCliente(cliente: Cliente): string {
@@ -488,7 +490,18 @@ function HojaProducto({
           {`Descuento${d?.tipo === "porcentaje" ? ` (${porcentaje(d.valor)}%)` : ""}: - ${formatearUSD(linea.descuentoCentavos)}`}
         </Text>
       ) : null}
-      <Text style={s.precioIva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      {linea.desgloseIva ? (
+        <>
+          <Text style={s.precioLinea}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaExento)}: ${formatearUSD(linea.desgloseIva.exentoCentavos)} exento de IVA`}
+          </Text>
+          <Text style={s.precioLinea}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaConIva)}: ${formatearUSD(linea.desgloseIva.conIvaCentavos)} IVA incluido`}
+          </Text>
+        </>
+      ) : (
+        <Text style={s.precioIva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      )}
     </View>
   );
   const precios = (
@@ -501,7 +514,18 @@ function HojaProducto({
         </Text>
       ) : null}
       <Text style={s.importe}>{`Importe: ${formatearUSD(linea.netoCentavos)}`}</Text>
-      <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      {linea.desgloseIva ? (
+        <>
+          <Text style={s.iva}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaExento)}: ${formatearUSD(linea.desgloseIva.exentoCentavos)} exento de IVA`}
+          </Text>
+          <Text style={s.iva}>
+            {`${aWinAnsi(linea.desgloseIva.etiquetaConIva)}: ${formatearUSD(linea.desgloseIva.conIvaCentavos)} IVA incluido`}
+          </Text>
+        </>
+      ) : (
+        <Text style={s.iva}>{linea.ivaIncluido ? "IVA incluido" : "Exento de IVA"}</Text>
+      )}
     </View>
   );
   let franja = 0;
@@ -593,7 +617,6 @@ export function DocumentoCotizacion(datos: DatosPdf) {
               </>
             ) : (
               <>
-                <Text style={s.formaDePagoTitulo}>Forma de pago</Text>
                 <Text>{TEXTO_FORMA_DE_PAGO}</Text>
                 <Image src={datos.logoPago} style={s.logoPago} />
               </>
@@ -731,6 +754,7 @@ function proforma(): Borrador {
         precioVistoCentavos: 1790000,
         agregados: [],
         precioManualCentavos: null,
+        desgloseIva: null,
       },
       {
         productoId: PALA_554,
@@ -741,6 +765,7 @@ function proforma(): Borrador {
         precioVistoCentavos: 730000,
         agregados: [],
         precioManualCentavos: null,
+        desgloseIva: null,
       },
     ],
     entrega: { tipo: "inmediata" },
@@ -889,6 +914,7 @@ describe("PDF de la factura proforma", () => {
           precioVistoCentavos: 1790000,
           agregados: [],
           precioManualCentavos: null,
+          desgloseIva: null,
         },
       ],
     };
@@ -957,6 +983,41 @@ describe("PDF de la factura proforma", () => {
     expect(texto).toContain("Entrega: 50% — U$S 8.242,50.");
     expect(texto).toContain("Saldo: 3 de U$S 2.060,62 y una última de U$S 2.060,64.");
   });
+  it("el tractor con pala muestra qué parte va exenta y cuál lleva IVA", async () => {
+    const combo = catalogo.find((p) => p.titulo.includes("DF 554 con Pala frontal"));
+    if (!combo) throw new Error("falta el combo en el fixture");
+    const borrador: Borrador = {
+      ...proforma(),
+      tipoDocumento: "cotizacion",
+      cliente: null,
+      notas: [],
+      items: [
+        {
+          productoId: combo.id,
+          cantidad: 1,
+          descuento: null,
+          lineasOcultas: [],
+          mostrarFoto: false,
+          precioVistoCentavos: combo.precioCentavos,
+          agregados: [],
+          precioManualCentavos: null,
+          desgloseIva: {
+            etiquetaExento: "Tractor",
+            exentoCentavos: 1730000,
+            etiquetaConIva: "Pala frontal",
+            conIvaCentavos: 730000,
+          },
+        },
+      ],
+    };
+    const texto = await textoPlano(await renderizarPdf(datos(borrador)));
+    expect(texto).toContain("Tractor: U$S 17.300 exento de IVA");
+    expect(texto).toContain("Pala frontal: U$S 7.300 IVA incluido");
+    expect(texto).toContain("Importe: U$S 24.600");
+    expect(texto).toContain(
+      "Precios con IVA incluido o exentos de IVA, según se indica en cada producto.",
+    );
+  });
   it("una cotización sin cliente dice COTIZACIÓN y no muestra datos de cliente", async () => {
     const borrador: Borrador = { ...proforma(), tipoDocumento: "cotizacion", cliente: null };
     const texto = await textoPlano(await renderizarPdf(datos(borrador)));
@@ -1017,6 +1078,7 @@ describe("peso del PDF", () => {
           precioVistoCentavos: 590000,
           agregados: [],
           precioManualCentavos: null,
+          desgloseIva: null,
         },
       ],
     };
@@ -1299,6 +1361,7 @@ tarjetas `bg-superficie rounded-xl border border-borde p-4`, controles de 44px o
 | ItemCotizacion | cada línea | checkbox (marcado = se ve en el PDF) | el texto de la línea |
 | ItemCotizacion | ocultar todo | button | `Ocultar toda la descripción de <título>` |
 | ItemCotizacion | descuento | combobox + spinbutton | `Descuento de <título>` (opciones `Sin descuento`, `Porcentaje`, `Monto en U$S`) · `Valor del descuento de <título>` |
+| ItemCotizacion | reparto del IVA | spinbutton · button | `<etiqueta> exento (U$S)`, `<etiqueta> con IVA (U$S)` · `Quitar el reparto del IVA de <título>` |
 | ItemCotizacion | precio | spinbutton + button | `Precio de <título>` · `Usar el precio de la web de <título>` (solo con precio a mano) |
 | ItemCotizacion | detalle propio | textbox + button · button | `Agregar al detalle de <título>` + `Agregar` · `Quitar detalle <n> de <título>` |
 | Condiciones (E2-T4) | validez | spinbutton | `Validez (días)` |

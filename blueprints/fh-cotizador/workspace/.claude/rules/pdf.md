@@ -35,6 +35,8 @@ paths:
 - Con `tomas`, bajo el TOTAL va una línea por máquina recibida y después «SALDO A PAGAR»; las letras
   acompañan al saldo, que es lo que el cliente termina pagando.
 - Sin RUT ni cédula no se escribe esa línea; `contacto` sale como «Atención: …» debajo del cliente.
+- Con `desgloseIva` (tractor con pala), el recuadro del precio escribe las dos partes —cuánto va
+  exento y cuánto lleva IVA incluido— en lugar de la etiqueta única, y el pie queda en «mixto».
 - Fechas con `src/lib/pdf/fecha.ts` (hora de America/Montevideo, "setiembre").
 - La ruta responde errores con `{ error: { codigo, mensaje, detalle? } }` y los códigos de
   `CodigoErrorPdf` en `generar.ts`.

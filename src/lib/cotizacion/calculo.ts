@@ -38,6 +38,7 @@ export function calcularTotales(borrador: Borrador, catalogo: Producto[]): Resul
       descuentoCentavos,
       netoCentavos: brutoCentavos - descuentoCentavos,
       ivaIncluido: producto.ivaIncluido,
+      desgloseIva: item.desgloseIva,
     });
   }
   if (faltantes.length > 0) {
@@ -55,8 +56,14 @@ export function calcularTotales(borrador: Borrador, catalogo: Producto[]): Resul
     .slice(0, MAX_TOMAS)
     .reduce((suma, t) => suma + Math.max(0, Math.round(t.centavos)), 0);
   const conIva = lineas.filter((l) => l.ivaIncluido).length;
-  const iva: Totales["iva"] =
-    conIva === 0 ? "exento" : conIva === lineas.length ? "incluido" : "mixto";
+  const hayDesglose = lineas.some((l) => l.desgloseIva);
+  const iva: Totales["iva"] = hayDesglose
+    ? "mixto"
+    : conIva === 0
+      ? "exento"
+      : conIva === lineas.length
+        ? "incluido"
+        : "mixto";
   return {
     ok: true,
     totales: {

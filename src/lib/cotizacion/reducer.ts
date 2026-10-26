@@ -5,12 +5,13 @@ import {
   crearBorradorVacio,
   type Descuento,
   type Entrega,
+  type DesgloseIva,
   type Financiacion,
   type TipoDocumento,
 } from "./tipos";
 
 export type Accion =
-  | { tipo: "agregar"; producto: Producto; cantidad: number }
+  | { tipo: "agregar"; producto: Producto; cantidad: number; desgloseIva?: DesgloseIva | null }
   | { tipo: "quitar"; productoId: number }
   | { tipo: "cantidad"; productoId: number; cantidad: number }
   | { tipo: "descuentoItem"; productoId: number; descuento: Descuento | null }
@@ -26,6 +27,7 @@ export type Accion =
   | { tipo: "mostrarFoto"; productoId: number; mostrar: boolean }
   | { tipo: "actualizarPrecio"; productoId: number; precioCentavos: number }
   | { tipo: "precioManual"; productoId: number; centavos: number | null }
+  | { tipo: "desgloseIva"; productoId: number; desglose: DesgloseIva | null }
   | { tipo: "agregado"; productoId: number; texto: string }
   | { tipo: "quitarAgregado"; productoId: number; indice: number }
   | { tipo: "nota"; texto: string }
@@ -73,6 +75,7 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
             precioVistoCentavos: a.producto.precioCentavos,
             agregados: [],
             precioManualCentavos: null,
+            desgloseIva: a.desgloseIva ?? null,
           },
         ],
       };
@@ -147,6 +150,13 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
                   a.centavos === null ? null : Math.max(1, Math.round(a.centavos)),
               }
             : i,
+        ),
+      };
+    case "desgloseIva":
+      return {
+        ...b,
+        items: b.items.map((i) =>
+          i.productoId === a.productoId ? { ...i, desgloseIva: a.desglose } : i,
         ),
       };
     case "agregado": {

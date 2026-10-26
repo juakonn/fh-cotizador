@@ -39,6 +39,13 @@ arregla otra cosa, en «Condiciones» se elige **Entrega y cuotas**: se pone el 
 la cantidad de cuotas, y la app calcula los montos (por ejemplo, 30% de entrega sobre U$S 4.400 son
 U$S 1.320 y quedan 7 cuotas de U$S 440). Eso es lo que sale impreso.
 
+## Tractores con pala frontal
+
+El tractor va exento de IVA y la pala lo lleva incluido. Al agregar un combo, la app reparte el
+precio sola (toma el valor de la pala de ese modelo en la web) y el PDF escribe las dos partes, por
+ejemplo «Tractor: U$S 17.300 exento de IVA» y «Pala frontal: U$S 7.300 IVA incluido». Si el reparto
+no es ese, se edita en la tarjeta del producto, y «Sin reparto» lo saca.
+
 ## Toma de máquinas
 
 Si el cliente entrega un tractor o una máquina en parte de pago, en «Condiciones» se escribe qué se

@@ -28,6 +28,7 @@ function item(productoId: number, extra: Partial<Item> = {}): Item {
     precioVistoCentavos: 0,
     agregados: [],
     precioManualCentavos: null,
+    desgloseIva: null,
     ...extra,
   };
 }
@@ -219,6 +220,7 @@ describe("precio puesto a mano", () => {
           precioVistoCentavos: 1790000,
           agregados: [],
           precioManualCentavos: 1650000,
+          desgloseIva: null,
         },
       ],
     };

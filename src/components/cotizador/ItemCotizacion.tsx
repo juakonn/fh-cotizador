@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import type { Producto } from "@/lib/catalogo/normalizar";
 import type { Accion } from "@/lib/cotizacion/reducer";
-import type { Item } from "@/lib/cotizacion/tipos";
+import type { DesgloseIva, Item } from "@/lib/cotizacion/tipos";
 import { formatearUSD } from "@/lib/dinero/formato";
 import { BOTON, CAMPO, CampoNumero, SelectorDescuento, TARJETA } from "./campos";
 
@@ -121,6 +121,67 @@ export function ItemCotizacion({
           </button>
         ) : null}
       </div>
+
+      {item.desgloseIva ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Reparto del IVA</legend>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <CampoNumero
+                etiqueta={`${item.desgloseIva.etiquetaExento} exento (U$S)`}
+                valor={item.desgloseIva.exentoCentavos / 100}
+                minimo={0}
+                maximo={1_000_000}
+                alConfirmar={(usd) =>
+                  despachar([
+                    {
+                      tipo: "desgloseIva",
+                      productoId: id,
+                      desglose: {
+                        ...(item.desgloseIva as DesgloseIva),
+                        exentoCentavos: Math.round(usd * 100),
+                      },
+                    },
+                  ])
+                }
+              />
+            </div>
+            <div className="flex-1">
+              <CampoNumero
+                etiqueta={`${item.desgloseIva.etiquetaConIva} con IVA (U$S)`}
+                valor={item.desgloseIva.conIvaCentavos / 100}
+                minimo={0}
+                maximo={1_000_000}
+                alConfirmar={(usd) =>
+                  despachar([
+                    {
+                      tipo: "desgloseIva",
+                      productoId: id,
+                      desglose: {
+                        ...(item.desgloseIva as DesgloseIva),
+                        conIvaCentavos: Math.round(usd * 100),
+                      },
+                    },
+                  ])
+                }
+              />
+            </div>
+          </div>
+          {item.desgloseIva.exentoCentavos + item.desgloseIva.conIvaCentavos !== precioCentavos ? (
+            <p className="text-error">
+              {`Las dos partes suman ${formatearUSD(item.desgloseIva.exentoCentavos + item.desgloseIva.conIvaCentavos)} y el precio es ${formatearUSD(precioCentavos)}.`}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            aria-label={`Quitar el reparto del IVA de ${titulo}`}
+            className={`${BOTON} w-fit`}
+            onClick={() => despachar([{ tipo: "desgloseIva", productoId: id, desglose: null }])}
+          >
+            Sin reparto
+          </button>
+        </fieldset>
+      ) : null}
 
       <div className="flex flex-col gap-2">
         <label htmlFor={idAgregado} className="text-sm font-medium">

@@ -20,6 +20,13 @@ const esquemaCliente = z.discriminatedUnion("tipo", [
   }),
 ]);
 
+const esquemaDesgloseIva = z.object({
+  etiquetaExento: z.string().trim().min(1).max(40),
+  exentoCentavos: z.number().int().nonnegative().max(100_000_000),
+  etiquetaConIva: z.string().trim().min(1).max(40),
+  conIvaCentavos: z.number().int().nonnegative().max(100_000_000),
+});
+
 const esquemaToma = z.object({
   detalle: z.string().trim().min(1).max(120),
   centavos: z.number().int().positive().max(100_000_000),
@@ -46,6 +53,7 @@ export const esquemaItem = z.object({
   // Con `default` los borradores guardados antes de esta versión siguen siendo válidos.
   agregados: z.array(z.string().trim().min(1).max(120)).max(6).default([]),
   precioManualCentavos: z.number().int().positive().max(100_000_000).nullable().default(null),
+  desgloseIva: esquemaDesgloseIva.nullable().default(null),
 });
 
 export const esquemaBorrador = z.object({

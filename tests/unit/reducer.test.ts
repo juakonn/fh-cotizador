@@ -52,6 +52,7 @@ describe("aplicar", () => {
         precioVistoCentavos: 730000,
         agregados: [],
         precioManualCentavos: null,
+        desgloseIva: null,
       },
     ]);
   });
