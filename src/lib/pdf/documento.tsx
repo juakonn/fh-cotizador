@@ -128,8 +128,8 @@ const s = StyleSheet.create({
   filaRelleno: { paddingHorizontal: "1.5mm" },
   filaValor: { flex: 1, fontSize: 9 },
   parrafo: { fontSize: 9, marginBottom: "1.5mm" },
-  filaApretada: { paddingVertical: "0.3mm" },
-  textoApretado: { fontSize: 8.5 },
+  filaApretada: { paddingVertical: "0.2mm" },
+  textoApretado: { fontSize: 8 },
   parrafoApretado: { fontSize: 8.5, marginBottom: "1mm" },
   verEnLaWeb: { fontSize: 7.5, color: SUAVE, marginTop: "1.5mm" },
   seccionApretada: { marginTop: "2mm", marginBottom: "0.5mm" },
@@ -143,7 +143,7 @@ const s = StyleSheet.create({
   },
   importe: { fontFamily: "Helvetica-Bold", fontSize: 11, color: MARINO },
   iva: { fontSize: 8, color: SUAVE },
-  cierre: { flexDirection: "row", gap: "6mm", marginTop: "7mm" },
+  cierre: { flexDirection: "row", gap: "6mm", marginTop: "5mm" },
   cierreIzquierda: { flex: 1 },
   cierreDerecha: { width: "74mm" },
   cierreTitulo: {
@@ -173,7 +173,7 @@ const s = StyleSheet.create({
   letras: { fontFamily: "Helvetica-Oblique", fontSize: 9 },
   condiciones: { marginTop: "4mm" },
   formaDePagoTitulo: { fontFamily: "Helvetica-Bold", color: MARINO, marginTop: "1.5mm" },
-  logoPago: { width: "33mm", height: "9mm", marginTop: "1.5mm" },
+  logoPago: { width: "26mm", height: "7mm", marginTop: "1mm" },
   notas: { marginTop: "3mm" },
   atendido: { marginTop: "3mm", color: SUAVE },
 });
@@ -280,6 +280,13 @@ function altoFotoColumna(filas: number): string {
   return "68mm";
 }
 
+// Un título sin filas debajo (porque esas líneas quedaron fuera de la hoja) no se escribe.
+function sinTitulosVacios(lineas: Linea[]): Linea[] {
+  return lineas.filter(
+    (l, i) => l.tipo !== "titulo" || lineas.slice(i + 1).some((s) => s.tipo !== "titulo"),
+  );
+}
+
 function HojaProducto({
   datos,
   linea,
@@ -298,10 +305,10 @@ function HojaProducto({
     texto: aWinAnsi(texto),
     importante: true,
   }));
-  const visibles = [
+  const visibles = sinTitulosVacios([
     ...(producto?.lineas ?? []).filter((l) => !item?.lineasOcultas.includes(l.id)),
     ...propias,
-  ];
+  ]);
   const d = item?.descuento ?? null;
   const fichaAncha = visibles.length >= LINEAS_PARA_FICHA_ANCHA;
   const dosColumnas = Boolean(foto) && visibles.length >= LINEAS_PARA_DOS_COLUMNAS && !fichaAncha;
@@ -461,7 +468,6 @@ export function DocumentoCotizacion(datos: DatosPdf) {
         ))}
         <View style={s.cierre} wrap={false}>
           <View style={s.cierreIzquierda}>
-            <Text style={s.cierreTitulo}>Condiciones</Text>
             <Text>{`Validez de la oferta: ${borrador.validezDias} días.`}</Text>
             <Text>{`Plazo de entrega: ${textoEntrega(borrador.entrega)}.`}</Text>
             {plan && borrador.financiacion ? (

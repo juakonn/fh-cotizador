@@ -41,12 +41,52 @@ const MAX_AGREGADOS = 6;
 const MAX_TOMAS = 4;
 // Una cotización no es un catálogo: del producto van a la hoja las primeras líneas de la ficha y el
 // resto queda destildado. El vendedor puede sumar las que quiera desde la tarjeta del producto.
-const MAX_LINEAS_EN_LA_HOJA = 14;
+const MAX_LINEAS_EN_LA_HOJA = 18;
+// Las medidas están al final de la tabla de Shopify: sin esta reserva se las comía el tope.
+const MAX_MEDIDAS_EN_LA_HOJA = 5;
 
+// Dato con valor real: una medida, un peso, una potencia, una marca. Se prefieren a las filas que
+// solo dicen "Sí" o "Opcional" y a la letra chica del final de la ficha.
+const SIN_SUSTANCIA = /^(s[ií]|no|opcional|est[aá]ndar|-|—).?$/i;
+const LETRA_CHICA = /especificaciones pueden variar|sin previo aviso|sujeto a cambios/i;
+const MEDIDA =
+  /^(peso|largo|ancho|alto|altura|despeje|medidas?|dimensiones|trocha|trillo|distancia)/i;
+
+function valor(texto: string): string {
+  return texto.split(":").slice(1).join(":").trim();
+}
+
+function valeLaPena(texto: string): boolean {
+  if (LETRA_CHICA.test(texto)) return false;
+  return !SIN_SUSTANCIA.test(valor(texto) || texto.trim());
+}
+
+function esMedida(texto: string): boolean {
+  return MEDIDA.test(texto.trim()) && valeLaPena(texto);
+}
+
+/**
+ * De la ficha van a la hoja hasta MAX_LINEAS_EN_LA_HOJA líneas, en el orden de la web. Entran
+ * primero los títulos, después las medidas y el peso (con tope propio, que si no se comen la hoja),
+ * después el resto de los datos con sustancia y al final las filas que solo dicen "Sí".
+ */
 function lineasOcultasAlAgregar(producto: Producto): string[] {
   const ocultas = producto.lineas.filter((l) => !l.importante).map((l) => l.id);
   const visibles = producto.lineas.filter((l) => l.importante);
-  for (const l of visibles.slice(MAX_LINEAS_EN_LA_HOJA)) ocultas.push(l.id);
+  const titulos = visibles.filter((l) => l.tipo === "titulo");
+  const medidas = visibles
+    .filter((l) => l.tipo !== "titulo" && esMedida(l.texto))
+    .slice(0, MAX_MEDIDAS_EN_LA_HOJA);
+  const datos = visibles.filter(
+    (l) => l.tipo !== "titulo" && !esMedida(l.texto) && valeLaPena(l.texto),
+  );
+  const relleno = visibles.filter(
+    (l) => l.tipo !== "titulo" && !medidas.includes(l) && !datos.includes(l),
+  );
+  const elegidas = new Set(
+    [...titulos, ...medidas, ...datos, ...relleno].slice(0, MAX_LINEAS_EN_LA_HOJA).map((l) => l.id),
+  );
+  for (const l of visibles) if (!elegidas.has(l.id)) ocultas.push(l.id);
   return ocultas;
 }
 

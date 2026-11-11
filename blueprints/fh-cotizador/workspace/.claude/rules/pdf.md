@@ -17,9 +17,12 @@ paths:
   3. 15 o más: foto y precio arriba y la ficha a lo ancho en dos columnas.
   El alto de la foto sale de `altoFoto`/`altoFotoColumna`: son los valores más grandes que dejan
   entrar el cierre en la misma hoja, medidos con los tests del paso 8.
-- Al agregar un producto se muestran como mucho `MAX_LINEAS_EN_LA_HOJA` (14) líneas de ficha; si
-  quedaron datos afuera, el PDF cierra la ficha con «Ficha técnica completa en
-  florenciohernandez.com.uy/products/<handle>». Una cotización no es un catálogo.
+- Al agregar un producto se muestran como mucho `MAX_LINEAS_EN_LA_HOJA` (18) líneas de ficha, con
+  prioridad para los títulos, después las medidas y el peso (tope propio de 5) y después el resto de
+  los datos con sustancia; las filas que solo dicen «Sí» y la letra chica van últimas. Si quedaron
+  datos afuera, el PDF cierra la ficha con «Ficha técnica completa en
+  florenciohernandez.com.uy/products/<handle>», y los títulos sin filas debajo no se escriben. Una
+  cotización no es un catálogo.
 - **El cierre** va después del último producto en un bloque `wrap={false}` de dos columnas:
   condiciones, forma de pago y notas a la izquierda; resumen, total y «Atendido por» a la derecha.
 - Medidas, peso y equipamiento salen de la descripción de Shopify más los `agregados` del ítem (líneas
