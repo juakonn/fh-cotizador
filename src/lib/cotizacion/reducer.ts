@@ -41,7 +41,7 @@ const MAX_AGREGADOS = 6;
 const MAX_TOMAS = 4;
 // Una cotización no es un catálogo: del producto van a la hoja las primeras líneas de la ficha y el
 // resto queda destildado. El vendedor puede sumar las que quiera desde la tarjeta del producto.
-const MAX_LINEAS_EN_LA_HOJA = 18;
+const MAX_LINEAS_EN_LA_HOJA = 20;
 // Las medidas están al final de la tabla de Shopify: sin esta reserva se las comía el tope.
 const MAX_MEDIDAS_EN_LA_HOJA = 5;
 

@@ -61,7 +61,7 @@ se calculan la entrega y las cuotas.
 
 ## Ficha técnica en el PDF
 
-De cada producto van a la hoja hasta **18 líneas** de la ficha, que es lo que entra sin armar hojas de
+De cada producto van a la hoja hasta **20 líneas** de la ficha, todas en la columna derecha, que es lo que entra sin armar hojas de
 más. La app elige las que valen: primero las medidas y el peso, después el motor, la transmisión y
 el resto, y deja para el final las filas que solo dicen «Sí». Si quedaron datos afuera, al pie de la
 ficha aparece «Ficha técnica completa en florenciohernandez.com.uy/products/…». Si para un cliente querés mostrar más (o menos), en la tarjeta

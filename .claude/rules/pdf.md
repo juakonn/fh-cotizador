@@ -10,14 +10,13 @@ paths:
 - Página A4 con el membrete `src/lib/pdf/assets/membrete-fh-a4.jpg` como `<Image fixed>` absoluto de
   210×297 mm. Zona de escritura: `paddingTop 52mm`, `paddingBottom 32mm`, `paddingHorizontal 18mm`.
   El membrete ocupa arriba hasta 46 mm y abajo desde 270,6 mm: no escribir fuera de la zona.
-- **Una hoja por producto**: cada producto después del primero empieza con `break`, y la hoja se arma
-  de una de tres formas según cuánta ficha haya visible:
-  1. menos de 3 líneas o sin foto: foto y precio lado a lado, ficha abajo;
-  2. de 3 a 14: dos columnas (foto grande enmarcada y precio destacado a la izquierda, ficha al lado);
-  3. 15 o más: foto y precio arriba y la ficha a lo ancho en dos columnas.
-  El alto de la foto sale de `altoFoto`/`altoFotoColumna`: son los valores más grandes que dejan
-  entrar el cierre en la misma hoja, medidos con los tests del paso 8.
-- Al agregar un producto se muestran como mucho `MAX_LINEAS_EN_LA_HOJA` (18) líneas de ficha, con
+- **Una hoja por producto**: cada producto después del primero empieza con `break`. Con foto y al
+  menos 3 líneas visibles la hoja va en dos columnas: foto grande enmarcada (76 mm, no se achica
+  aunque la ficha sea larga) y precio destacado a la izquierda, y **toda la ficha técnica a la
+  derecha**. Sin foto o con menos de 3 líneas, foto y precio lado a lado y la ficha abajo.
+- El cierre lleva `marginTop: "auto"`: queda al pie de la hoja, contra el membrete, en vez de pegado
+  a la ficha.
+- Al agregar un producto se muestran como mucho `MAX_LINEAS_EN_LA_HOJA` (20) líneas de ficha, con
   prioridad para los títulos, después las medidas y el peso (tope propio de 5) y después el resto de
   los datos con sustancia; las filas que solo dicen «Sí» y la letra chica van últimas. Si quedaron
   datos afuera, el PDF cierra la ficha con «Ficha técnica completa en

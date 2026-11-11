@@ -1690,7 +1690,7 @@ export type Accion =
 
 - `export function aplicar(b: Borrador, a: Accion): Borrador` — puro, nunca muta `b`:
   - `agregar`: si el producto ya está, suma la cantidad y actualiza `precioVistoCentavos`; si no, agrega
-    `{ productoId, cantidad, descuento: null, lineasOcultas: <ids de las líneas con importante=false, más las que no entran en las 18 líneas de la hoja>, mostrarFoto: true, precioVistoCentavos, agregados: [], precioManualCentavos: null }`
+    `{ productoId, cantidad, descuento: null, lineasOcultas: <ids de las líneas con importante=false, más las que no entran en las 20 líneas de la hoja>, mostrarFoto: true, precioVistoCentavos, agregados: [], precioManualCentavos: null }`
     (las secciones de venta arrancan ocultas; el vendedor las puede volver a mostrar)
     al final. Cantidades acotadas y redondeadas a 1–99; validez a 1–365.
   - `ocultarLinea`: agrega o saca el id sin duplicarlo. `actualizarPrecio`: cambia `precioVistoCentavos`.
@@ -1796,10 +1796,10 @@ describe("aplicar", () => {
     let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
     const deVenta = FARMTRAC.lineas.filter((l) => !l.importante).map((l) => l.id);
     expect(deVenta).toEqual(["L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L26", "L27"]);
-    // Arrancan ocultas las secciones de venta y lo que no entra en la hoja (tope de 18 líneas).
+    // Arrancan ocultas las secciones de venta y lo que no entra en la hoja (tope de 20 líneas).
     const alAgregar = b.items[0].lineasOcultas;
     const visibles = FARMTRAC.lineas.filter((l) => l.importante && !alAgregar.includes(l.id));
-    expect(visibles.length).toBeLessThanOrEqual(18);
+    expect(visibles.length).toBeLessThanOrEqual(20);
     expect(visibles.length).toBeGreaterThan(8);
     for (const id of deVenta) expect(alAgregar).toContain(id);
     // Las medidas y el peso entran aunque estén al final de la ficha.

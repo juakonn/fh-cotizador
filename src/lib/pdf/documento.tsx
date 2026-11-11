@@ -75,8 +75,6 @@ const s = StyleSheet.create({
   foto: { flex: 1, height: "58mm", objectFit: "contain", marginRight: "5mm" },
   // Ficha larga: foto y precio en una columna a la izquierda, ficha técnica al lado.
   columnas: { flexDirection: "row", gap: "5mm" },
-  fichaAncha: { flexDirection: "row", gap: "6mm" },
-  fichaColumna: { flex: 1 },
   columnaIzquierda: { width: "76mm" },
   columnaDerecha: { flex: 1 },
   marcoFoto: {
@@ -143,7 +141,8 @@ const s = StyleSheet.create({
   },
   importe: { fontFamily: "Helvetica-Bold", fontSize: 11, color: MARINO },
   iva: { fontSize: 8, color: SUAVE },
-  cierre: { flexDirection: "row", gap: "6mm", marginTop: "5mm" },
+  // marginTop auto empuja el cierre al pie de la hoja, contra el membrete.
+  cierre: { flexDirection: "row", gap: "6mm", marginTop: "auto", paddingTop: "5mm" },
   cierreIzquierda: { flex: 1 },
   cierreDerecha: { width: "74mm" },
   cierreTitulo: {
@@ -265,19 +264,13 @@ function LineaDescripcion({
 // Con foto y al menos tres líneas el producto va en dos columnas: la foto se ve grande y el cierre
 // (total, condiciones y notas) entra en la misma hoja en vez de irse a la siguiente.
 const LINEAS_PARA_DOS_COLUMNAS = 3;
-// Con una ficha larga (los Dong Feng traen 25 filas o más) la columna angosta no alcanza: la ficha
-// pasa a lo ancho, en dos columnas, debajo de la foto y el precio.
-const LINEAS_PARA_FICHA_ANCHA = 15;
-
 function altoFoto(filas: number): string {
-  if (filas <= 8) return "60mm";
-  return filas >= LINEAS_PARA_FICHA_ANCHA ? "52mm" : "58mm";
+  return filas <= 8 ? "60mm" : "58mm";
 }
 
+// La foto no se achica porque la ficha sea larga: la ficha va al lado, en la columna derecha.
 function altoFotoColumna(filas: number): string {
-  if (filas <= 8) return "80mm";
-  if (filas <= 13) return "74mm";
-  return "68mm";
+  return filas <= 8 ? "80mm" : "76mm";
 }
 
 // Un título sin filas debajo (porque esas líneas quedaron fuera de la hoja) no se escribe.
@@ -310,8 +303,7 @@ function HojaProducto({
     ...propias,
   ]);
   const d = item?.descuento ?? null;
-  const fichaAncha = visibles.length >= LINEAS_PARA_FICHA_ANCHA;
-  const dosColumnas = Boolean(foto) && visibles.length >= LINEAS_PARA_DOS_COLUMNAS && !fichaAncha;
+  const dosColumnas = Boolean(foto) && visibles.length >= LINEAS_PARA_DOS_COLUMNAS;
   const precioDestacado = (
     <View style={s.precioDestacado} wrap={false}>
       <Text style={s.precioEtiqueta}>PRECIO</Text>
@@ -374,7 +366,7 @@ function HojaProducto({
       <LineaDescripcion
         key={l.id}
         linea={l}
-        apretado={dosColumnas || fichaAncha}
+        apretado={dosColumnas}
         gris={l.tipo !== "titulo" && franja % 2 === 0}
       />
     );
@@ -390,15 +382,6 @@ function HojaProducto({
         {`Ficha técnica completa en florenciohernandez.com.uy/products/${producto.handle}`}
       </Text>
     ) : null;
-  // La ficha ancha se parte por la mitad, dejando los títulos («Ficha técnica») al principio de
-  // la primera columna.
-  const mitad = Math.ceil(visibles.length / 2);
-  const fichaEnDos = (
-    <View style={s.fichaAncha}>
-      <View style={s.fichaColumna}>{visibles.slice(0, mitad).map(comoLinea)}</View>
-      <View style={s.fichaColumna}>{visibles.slice(mitad).map(comoLinea)}</View>
-    </View>
-  );
   return (
     <View style={s.producto} break={!primera}>
       <Text style={s.productoTitulo}>{linea.titulo}</Text>
@@ -429,7 +412,7 @@ function HojaProducto({
             ) : null}
             {precios}
           </View>
-          {fichaAncha ? fichaEnDos : descripcion}
+          {descripcion}
           {verEnLaWeb}
         </>
       )}
