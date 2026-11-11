@@ -169,3 +169,25 @@ describe("sospecha de IVA", () => {
     expect(productos(titulos).some((p) => p.sospechaIva)).toBe(false);
   });
 });
+
+describe("fichas técnicas en tabla", () => {
+  it("junta cada fila de dos celdas en una sola línea «Etiqueta: valor»", () => {
+    const html =
+      "<h3>Ficha técnica</h3><table><tbody>" +
+      "<tr><td><strong>Motor</strong></td><td>Diésel 4 cilindros</td></tr>" +
+      "<tr><td><strong>Potencia</strong></td><td>55 HP</td></tr>" +
+      "</tbody></table>";
+    expect(limpiarDescripcion(html).map((l) => l.texto)).toEqual([
+      "Ficha técnica",
+      "Motor: Diésel 4 cilindros",
+      "Potencia: 55 HP",
+    ]);
+  });
+  it("una fila con una sola celda sigue saliendo como línea suelta", () => {
+    const html =
+      "<table><tbody><tr><td>Las especificaciones pueden variar</td></tr></tbody></table>";
+    expect(limpiarDescripcion(html).map((l) => l.texto)).toEqual([
+      "Las especificaciones pueden variar",
+    ]);
+  });
+});

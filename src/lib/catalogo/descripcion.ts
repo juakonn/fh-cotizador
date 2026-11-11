@@ -74,9 +74,30 @@ function decodificar(texto: string): string {
   });
 }
 
+/**
+ * Las fichas técnicas de Shopify vienen como tabla de dos celdas por fila ("Motor" | "Diésel 4
+ * cilindros"). Cada fila se junta en una sola línea "Motor: Diésel 4 cilindros" para que el PDF la
+ * arme como fila de tabla; si se partieran en dos líneas, la ficha ocuparía el doble.
+ */
+function juntarFilasDeTabla(html: string): string {
+  return html.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi, (fila, interior: string) => {
+    const celdas = [...interior.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map((c) =>
+        c[1]
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim(),
+      )
+      .filter((c) => c.length > 0);
+    if (celdas.length !== 2) return fila;
+    const [etiqueta, valor] = celdas;
+    return `\n${MARCA_ITEM}${etiqueta.replace(/:\s*$/, "")}: ${valor}\n`;
+  });
+}
+
 export function limpiarDescripcion(html: string): Linea[] {
   if (!html) return [];
-  const marcado = html
+  const marcado = juntarFilasDeTabla(html)
     .replace(/<h[1-6]\b[^>]*>/gi, `\n${MARCA_TITULO}`)
     .replace(/<li\b[^>]*>/gi, `\n${MARCA_ITEM}`)
     .replace(/<br\s*\/?>/gi, "\n")

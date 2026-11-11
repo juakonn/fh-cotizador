@@ -13,6 +13,8 @@ paths:
 - `ivaIncluido` sale solo de la etiqueta `iva-incluido` (sin importar mayúsculas). `sospechaIva`
   marca palas frontales, palas cajón, palas niveladoras, retroexcavadoras y chipeadoras sin la etiqueta
   (salvo el tractor que viene con la pala incluida, que queda exento): nunca se infiere el IVA.
+- Las fichas técnicas de Shopify son tablas: cada `<tr>` de dos celdas se junta en una sola línea
+  «Etiqueta: valor» (`juntarFilasDeTabla`). Partirlas en dos líneas duplicaba el largo de la ficha.
 - Las descripciones se limpian con `limpiarDescripcion`: sin emojis, sin enlaces, sin llamados a
   WhatsApp, sin el bloque de financiación (la forma de pago ya va al pie del PDF) y sin precios escritos
   a mano. Las secciones de venta («Ideal para», «Por qué elegirlo», «El respaldo…») salen con

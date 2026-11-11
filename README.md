@@ -59,6 +59,13 @@ Si el cliente entrega un tractor o una máquina en parte de pago, en «Condicion
 toma y por cuánto. El PDF muestra el total, la toma y abajo el **saldo a pagar**, que es sobre lo que
 se calculan la entrega y las cuotas.
 
+## Ficha técnica en el PDF
+
+De cada producto van a la hoja las primeras **14 líneas** de la ficha, que es lo que entra sin armar
+hojas de más; si el producto tiene más datos, al pie de la ficha aparece «Ficha técnica completa en
+florenciohernandez.com.uy/products/…». Si para un cliente querés mostrar más (o menos), en la tarjeta
+del producto está la lista completa con una casilla por línea.
+
 ## Precios, fotos y descripciones
 
 Salen de la web (Shopify): la app no guarda ni cambia precios. Si un precio, una foto o una ficha técnica

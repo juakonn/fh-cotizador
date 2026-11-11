@@ -39,6 +39,16 @@ const MAX_HISTORIAL = 30;
 const MAX_NOTAS = 10;
 const MAX_AGREGADOS = 6;
 const MAX_TOMAS = 4;
+// Una cotización no es un catálogo: del producto van a la hoja las primeras líneas de la ficha y el
+// resto queda destildado. El vendedor puede sumar las que quiera desde la tarjeta del producto.
+const MAX_LINEAS_EN_LA_HOJA = 14;
+
+function lineasOcultasAlAgregar(producto: Producto): string[] {
+  const ocultas = producto.lineas.filter((l) => !l.importante).map((l) => l.id);
+  const visibles = producto.lineas.filter((l) => l.importante);
+  for (const l of visibles.slice(MAX_LINEAS_EN_LA_HOJA)) ocultas.push(l.id);
+  return ocultas;
+}
 
 function acotar(valor: number, minimo: number, maximo: number): number {
   return Math.min(maximo, Math.max(minimo, Math.round(valor)));
@@ -70,7 +80,7 @@ export function aplicar(b: Borrador, a: Accion): Borrador {
             productoId: a.producto.id,
             cantidad: acotar(a.cantidad, 1, 99),
             descuento: null,
-            lineasOcultas: a.producto.lineas.filter((l) => !l.importante).map((l) => l.id),
+            lineasOcultas: lineasOcultasAlAgregar(a.producto),
             mostrarFoto: true,
             precioVistoCentavos: a.producto.precioCentavos,
             agregados: [],

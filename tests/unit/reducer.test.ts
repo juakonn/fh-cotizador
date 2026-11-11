@@ -69,13 +69,20 @@ describe("aplicar", () => {
     let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
     const deVenta = FARMTRAC.lineas.filter((l) => !l.importante).map((l) => l.id);
     expect(deVenta).toEqual(["L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L26", "L27"]);
-    expect(b.items[0].lineasOcultas).toEqual(deVenta);
+    // Arrancan ocultas las secciones de venta y lo que pasa de 14 líneas de ficha.
+    const deMas = FARMTRAC.lineas
+      .filter((l) => l.importante)
+      .slice(14)
+      .map((l) => l.id);
+    const alAgregar = [...deVenta, ...deMas];
+    expect(deMas.length).toBeGreaterThan(0);
+    expect(b.items[0].lineasOcultas).toEqual(alAgregar);
     const ocultar = { tipo: "ocultarLinea", productoId: FARMTRAC.id, lineaId: "L12" } as const;
     b = aplicar(b, { ...ocultar, oculta: true });
     b = aplicar(b, { ...ocultar, oculta: true });
-    expect(b.items[0].lineasOcultas).toEqual([...deVenta, "L12"]);
+    expect(b.items[0].lineasOcultas).toEqual([...alAgregar, "L12"]);
     b = aplicar(b, { ...ocultar, oculta: false });
-    expect(b.items[0].lineasOcultas).toEqual(deVenta);
+    expect(b.items[0].lineasOcultas).toEqual(alAgregar);
   });
   it("actualizarPrecio acepta el precio nuevo de la web", () => {
     let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });

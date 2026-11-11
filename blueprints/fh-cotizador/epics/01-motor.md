@@ -814,7 +814,9 @@ inyectable.
 - `export type Linea = { id: string; tipo: "titulo" | "item" | "parrafo"; texto: string; importante: boolean };`
 - `export function limpiarDescripcion(html: string): Linea[]`:
   1. Vacío → `[]`.
-  2. Marcá el comienzo de `<h1>`…`<h6>` como título y de `<li>` como ítem con caracteres de control
+  2. Antes de nada, juntá cada `<tr>` que tenga exactamente dos celdas en una sola línea de ítem
+     «Etiqueta: valor» (las fichas técnicas de Shopify son tablas; partirlas duplica el largo).
+  3. Marcá el comienzo de `<h1>`…`<h6>` como título y de `<li>` como ítem con caracteres de control
      (`String.fromCharCode(1)` y `String.fromCharCode(2)`; no uses letras ni escapes que un editor se
      pueda comer). `<br>` y la apertura o cierre de `p, div, ul, ol, li, h1–h6, tr, td, th, table,
      tbody, thead, section, blockquote` son saltos de línea; cualquier otra etiqueta se borra.
@@ -1052,6 +1054,28 @@ describe("sospecha de IVA", () => {
       "Farmtrac FT 6050 - 50HP - 4x4",
     ];
     expect(productos(titulos).some((p) => p.sospechaIva)).toBe(false);
+  });
+});
+
+describe("fichas técnicas en tabla", () => {
+  it("junta cada fila de dos celdas en una sola línea «Etiqueta: valor»", () => {
+    const html =
+      "<h3>Ficha técnica</h3><table><tbody>" +
+      "<tr><td><strong>Motor</strong></td><td>Diésel 4 cilindros</td></tr>" +
+      "<tr><td><strong>Potencia</strong></td><td>55 HP</td></tr>" +
+      "</tbody></table>";
+    expect(limpiarDescripcion(html).map((l) => l.texto)).toEqual([
+      "Ficha técnica",
+      "Motor: Diésel 4 cilindros",
+      "Potencia: 55 HP",
+    ]);
+  });
+  it("una fila con una sola celda sigue saliendo como línea suelta", () => {
+    const html =
+      "<table><tbody><tr><td>Las especificaciones pueden variar</td></tr></tbody></table>";
+    expect(limpiarDescripcion(html).map((l) => l.texto)).toEqual([
+      "Las especificaciones pueden variar",
+    ]);
   });
 });
 ```
@@ -1666,7 +1690,7 @@ export type Accion =
 
 - `export function aplicar(b: Borrador, a: Accion): Borrador` — puro, nunca muta `b`:
   - `agregar`: si el producto ya está, suma la cantidad y actualiza `precioVistoCentavos`; si no, agrega
-    `{ productoId, cantidad, descuento: null, lineasOcultas: <ids de las líneas con importante=false>, mostrarFoto: true, precioVistoCentavos, agregados: [], precioManualCentavos: null }`
+    `{ productoId, cantidad, descuento: null, lineasOcultas: <ids de las líneas con importante=false, más las que pasen de 14 líneas visibles>, mostrarFoto: true, precioVistoCentavos, agregados: [], precioManualCentavos: null }`
     (las secciones de venta arrancan ocultas; el vendedor las puede volver a mostrar)
     al final. Cantidades acotadas y redondeadas a 1–99; validez a 1–365.
   - `ocultarLinea`: agrega o saca el id sin duplicarlo. `actualizarPrecio`: cambia `precioVistoCentavos`.
@@ -1755,6 +1779,7 @@ describe("aplicar", () => {
         precioVistoCentavos: 730000,
         agregados: [],
         precioManualCentavos: null,
+        desgloseIva: null,
       },
     ]);
   });
@@ -1771,13 +1796,20 @@ describe("aplicar", () => {
     let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });
     const deVenta = FARMTRAC.lineas.filter((l) => !l.importante).map((l) => l.id);
     expect(deVenta).toEqual(["L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L26", "L27"]);
-    expect(b.items[0].lineasOcultas).toEqual(deVenta);
+    // Arrancan ocultas las secciones de venta y lo que pasa de 14 líneas de ficha.
+    const deMas = FARMTRAC.lineas
+      .filter((l) => l.importante)
+      .slice(14)
+      .map((l) => l.id);
+    const alAgregar = [...deVenta, ...deMas];
+    expect(deMas.length).toBeGreaterThan(0);
+    expect(b.items[0].lineasOcultas).toEqual(alAgregar);
     const ocultar = { tipo: "ocultarLinea", productoId: FARMTRAC.id, lineaId: "L12" } as const;
     b = aplicar(b, { ...ocultar, oculta: true });
     b = aplicar(b, { ...ocultar, oculta: true });
-    expect(b.items[0].lineasOcultas).toEqual([...deVenta, "L12"]);
+    expect(b.items[0].lineasOcultas).toEqual([...alAgregar, "L12"]);
     b = aplicar(b, { ...ocultar, oculta: false });
-    expect(b.items[0].lineasOcultas).toEqual(deVenta);
+    expect(b.items[0].lineasOcultas).toEqual(alAgregar);
   });
   it("actualizarPrecio acepta el precio nuevo de la web", () => {
     let b = aplicar(crearBorradorVacio(), { tipo: "agregar", producto: FARMTRAC, cantidad: 1 });

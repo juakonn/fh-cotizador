@@ -10,11 +10,16 @@ paths:
 - Página A4 con el membrete `src/lib/pdf/assets/membrete-fh-a4.jpg` como `<Image fixed>` absoluto de
   210×297 mm. Zona de escritura: `paddingTop 52mm`, `paddingBottom 32mm`, `paddingHorizontal 18mm`.
   El membrete ocupa arriba hasta 46 mm y abajo desde 270,6 mm: no escribir fuera de la zona.
-- **Una hoja por producto**: cada producto después del primero empieza con `break`. Con foto y al
-  menos 3 líneas visibles va en dos columnas (foto grande enmarcada y precio destacado a la izquierda,
-  ficha técnica al lado, con las líneas «Etiqueta: valor» como filas de tabla); si no, foto y precio
-  lado a lado y la ficha abajo. El alto de la foto sale de `altoFotoColumna`: son los valores más
-  grandes que dejan entrar el cierre en la misma hoja, medidos con los tests del paso 8.
+- **Una hoja por producto**: cada producto después del primero empieza con `break`, y la hoja se arma
+  de una de tres formas según cuánta ficha haya visible:
+  1. menos de 3 líneas o sin foto: foto y precio lado a lado, ficha abajo;
+  2. de 3 a 14: dos columnas (foto grande enmarcada y precio destacado a la izquierda, ficha al lado);
+  3. 15 o más: foto y precio arriba y la ficha a lo ancho en dos columnas.
+  El alto de la foto sale de `altoFoto`/`altoFotoColumna`: son los valores más grandes que dejan
+  entrar el cierre en la misma hoja, medidos con los tests del paso 8.
+- Al agregar un producto se muestran como mucho `MAX_LINEAS_EN_LA_HOJA` (14) líneas de ficha; si
+  quedaron datos afuera, el PDF cierra la ficha con «Ficha técnica completa en
+  florenciohernandez.com.uy/products/<handle>». Una cotización no es un catálogo.
 - **El cierre** va después del último producto en un bloque `wrap={false}` de dos columnas:
   condiciones, forma de pago y notas a la izquierda; resumen, total y «Atendido por» a la derecha.
 - Medidas, peso y equipamiento salen de la descripción de Shopify más los `agregados` del ítem (líneas
